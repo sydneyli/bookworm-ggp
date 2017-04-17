@@ -1,4 +1,3 @@
-package org.ggp.base.player.gamer.statemachine.random;
 
 import org.ggp.base.apps.player.detail.DetailPanel;
 import org.ggp.base.apps.player.detail.SimpleDetailPanel;
