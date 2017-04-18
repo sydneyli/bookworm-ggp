@@ -1,5 +1,7 @@
 import java.util.List;
 
+import org.ggp.base.player.gamer.event.GamerSelectedMoveEvent;
+import org.ggp.base.player.gamer.statemachine.sample.SampleGamer;
 import org.ggp.base.util.game.Game;
 import org.ggp.base.util.statemachine.MachineState;
 import org.ggp.base.util.statemachine.Move;
@@ -8,17 +10,25 @@ import org.ggp.base.util.statemachine.exceptions.GoalDefinitionException;
 import org.ggp.base.util.statemachine.exceptions.MoveDefinitionException;
 import org.ggp.base.util.statemachine.exceptions.TransitionDefinitionException;
 
-public class AlphaBeta extends MiniMax {
+public class AlphaBeta extends SampleGamer {
+	/**
+	 * Maximum recursive depth to search.
+	 * Enter -1 for infinite depth (i.e. evaluate entire tree)!
+	 */
+	private static final int MAX_DEPTH = -1;
 
 	@Override
-	public String getName() {
-		// TODO Auto-generated method stub
-		return "Alpha beta";
-	}
+	public Move stateMachineSelectMove(long timeout)
+			throws TransitionDefinitionException, MoveDefinitionException, GoalDefinitionException {
+		long start = System.currentTimeMillis();
 
-	@Override
-	protected Move chooseMove() throws MoveDefinitionException, TransitionDefinitionException, GoalDefinitionException {
-		return maxR(getCurrentState(), 0, Integer.MIN_VALUE, Integer.MAX_VALUE).move.get();
+		List<Move> moves = getStateMachine().getLegalMoves(getCurrentState(), getRole());
+		Move selection = maxR(getCurrentState(), 0, Integer.MIN_VALUE, Integer.MAX_VALUE).move.get();
+
+		long stop = System.currentTimeMillis();
+
+		notifyObservers(new GamerSelectedMoveEvent(moves, selection, stop - start));
+		return selection;
 	}
 
 	/**
@@ -34,9 +44,9 @@ public class AlphaBeta extends MiniMax {
 			if (b <= a) break;
         	MachineState nextState = machine.getNextState(currentState, jointMove);
         	best = Util.min(maxR(nextState, depth + 1, a, b), best);
-			b = Util.min(b, best.score);
+			b = Util.min(b, best.value);
         }
-        return new Score(best.score, move);
+        return new Score(best.value, move);
     }
 
 	/**
@@ -50,15 +60,14 @@ public class AlphaBeta extends MiniMax {
 		if (machine.isTerminal(currentState)) {
 			return new Score(machine.getGoal(currentState, getRole()));
 		} else if (depth == MAX_DEPTH) {
-			return new Score(this.heuristic.apply(currentState));
+			return new Score(Heuristics.getDefault().evaluate(currentState));
 		}
 		Score best = new Score(Integer.MIN_VALUE);
 		for (Move move : machine.getLegalMoves(currentState, getRole())) {
 			if (b <= a) break;
 			best = Util.max(minR(currentState, move, depth, a, b), best);
-			a = Util.max(a, best.score);
+			a = Util.max(a, best.value);
 		}
 		return best;
 	}
-
 }
