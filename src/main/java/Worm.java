@@ -20,7 +20,6 @@ public class Worm extends StateMachineGamer {
 
 	@Override
 	public StateMachine getInitialStateMachine() {
-		// TODO Auto-generated method stub
 		return new CachedStateMachine(new ProverStateMachine());
 	}
 
