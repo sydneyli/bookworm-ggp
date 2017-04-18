@@ -1,5 +1,3 @@
-import java.util.ArrayList;
-import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
 import java.util.function.Function;
@@ -24,12 +22,12 @@ public class MiniMax extends StateMachineGamer {
 	 * Maximum recursive depth to search.
 	 * Enter -1 for infinite depth (i.e. evaluate entire tree)!
 	 */
-	private static final int MAX_DEPTH = -1;
+	protected static final int MAX_DEPTH = -1;
 
 	/**
-	 * Our heuristic function.
+	 * Our heuristic function. TODO implement this so it's not shit
 	 */
-	private final Function<MachineState, Integer> heuristic;
+	protected final Function<MachineState, Integer> heuristic;
 
 	public MiniMax() {
 		super();
@@ -47,70 +45,70 @@ public class MiniMax extends StateMachineGamer {
 	}
 
 	/**
-	 * Immutable struct to contain a move selection and its score.
+	 * Immutable struct to potentially associate a Move with a score.
 	 */
-	private class Result implements Comparable<Result> {
+	protected class Score implements Comparable<Score> {
 		public final int score;
 		public final Optional<Move> move;
-		public Result(int score, Move move) {
+		public Score(int score, Move move) {
 			this.score = score;
 			this.move = Optional.of(move);
 		}
-		public Result(int score) {
+
+		public Score(int score) {
 			this.score = score;
 			this.move = Optional.empty();
 		}
 
 		@Override
-		public int compareTo(Result o) {
-			return o.score - score;
+		public String toString() {
+			return "(" + move.map(move -> move.toString()).orElse("N/A") + ", " + score + ")";
 		}
 
 		@Override
-		public String toString() {
-			return "(" + move.map(move -> move.toString()).orElse("Noop") + ", " + score + ")";
+		public int compareTo(Score o) {
+			return Integer.compare(score, o.score);
 		}
 	}
 
 	/**
-	 * For a |move| on |currentState|, calculate "worst-case" [min] behavior
-	 * of opposing players.
+	 * For our |move| on |currentState|, calculate "worst-case" [min] scoring
+	 * of opposing players, given our optimal [max] behavior.
 	 * @throws Game definition exceptions if GDL specification is malformed.
 	 */
-	private Result minR(final MachineState currentState, final Move move, int depth) throws MoveDefinitionException, TransitionDefinitionException, GoalDefinitionException {
+	private Score minR(final MachineState currentState, final Move move, int depth)
+			throws MoveDefinitionException, TransitionDefinitionException, GoalDefinitionException {
         StateMachine machine = getStateMachine();
-        List<Result> results = new ArrayList<Result>();
+        Score best = new Score(Integer.MAX_VALUE);
         for (List<Move> jointMove : machine.getLegalJointMoves(currentState, getRole(), move)) {
-            MachineState state = machine.getNextState(currentState, jointMove);
-            results.add(maxR(state, depth - 1));
+        	MachineState nextState = machine.getNextState(currentState, jointMove);
+        	best = Util.min(maxR(nextState, depth + 1), best);
         }
-        // Propagate score along with current move.
-        return new Result(Collections.min(results).score, move);
+        return new Score(best.score, move);
     }
 
 	/**
-	 * For a |move| on |currentState|, calculate best [max] action, given
-	 * worst-case behavior of opposing players.
+	 * For |currentState|, calculate our best [max] action, given
+	 * worst-case behavior [min] of opposing players.
 	 * @throws Game definition exceptions if GDL specification is malformed.
 	 */
-	private Result maxR(final MachineState currentState, int depth) throws MoveDefinitionException, TransitionDefinitionException, GoalDefinitionException {
+	private Score maxR(final MachineState currentState, int depth)
+			throws MoveDefinitionException, TransitionDefinitionException, GoalDefinitionException {
 		StateMachine machine = getStateMachine();
 		if (machine.isTerminal(currentState)) {
-			return new Result(machine.getGoal(currentState, getRole()));
-		} else if (depth == 0) {
-			return new Result(this.heuristic.apply(currentState));
+			return new Score(machine.getGoal(currentState, getRole()));
+		} else if (depth == MAX_DEPTH) {
+			return new Score(this.heuristic.apply(currentState));
 		}
-        List<Result> my_results = new ArrayList<Result>();
+		Score best = new Score(Integer.MIN_VALUE);
 		for (Move move : machine.getLegalMoves(currentState, getRole())) {
-			my_results.add(minR(currentState, move, depth));
+			best = Util.max(minR(currentState, move, depth), best);
 		}
-		return Collections.max(my_results);
+		return best;
 	}
 
-	private Move chooseMiniMaxMove() throws GoalDefinitionException, MoveDefinitionException, TransitionDefinitionException {
-		Result m = maxR(getCurrentState(), MAX_DEPTH);
-		System.out.println("MOVE " + m.toString() + " by " + getRole().toString());
-		return m.move.get();
+	protected Move chooseMove() throws MoveDefinitionException, TransitionDefinitionException, GoalDefinitionException {
+		return maxR(getCurrentState(), 0).move.get();
 	}
 
 	@Override
@@ -119,7 +117,7 @@ public class MiniMax extends StateMachineGamer {
 		long start = System.currentTimeMillis();
 
 		List<Move> moves = getStateMachine().getLegalMoves(getCurrentState(), getRole());
-		Move selection = chooseMiniMaxMove();
+		Move selection = chooseMove();
 
 		long stop = System.currentTimeMillis();
 
