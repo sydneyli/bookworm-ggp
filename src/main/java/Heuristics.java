@@ -1,18 +1,14 @@
+import java.util.function.Function;
+
 import org.ggp.base.util.statemachine.MachineState;
 
+/**
+ * Manager for heuristics. May eventually want to record
+ * state.
+ */
 public class Heuristics {
-	public interface Heuristic {
-		public int evaluate(MachineState state);
-	}
-
-	public static class Dumb implements Heuristic {
-		@Override
-		public int evaluate(MachineState state) {
-			return 50;
-		}
-	}
-
-	public static Heuristic getDefault() {
-		return new Dumb();
+	// Stateless heuristics
+	public static Function<MachineState, Integer> dumb() {
+		return state -> 50;
 	}
 }
