@@ -1,14 +1,12 @@
-import java.util.function.Function;
-
-import org.ggp.base.util.statemachine.MachineState;
+import org.ggp.base.player.gamer.statemachine.StateMachineGamer;
 
 /**
  * Manager for heuristics. May eventually want to record
  * state.
  */
 public class Heuristics {
-	// Stateless heuristics
-	public static Function<MachineState, Integer> dumb() {
-		return state -> 50;
+	// Dumb sample heuristic
+	public static int dumb(StateMachineGamer gamerState) {
+		return 50;
 	}
 }
