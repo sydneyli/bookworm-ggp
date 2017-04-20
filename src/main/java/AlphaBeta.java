@@ -2,6 +2,7 @@ import java.util.List;
 import java.util.function.Function;
 
 import org.ggp.base.player.gamer.event.GamerSelectedMoveEvent;
+import org.ggp.base.player.gamer.statemachine.StateMachineGamer;
 import org.ggp.base.util.game.Game;
 import org.ggp.base.util.statemachine.MachineState;
 import org.ggp.base.util.statemachine.Move;
@@ -59,7 +60,7 @@ public class AlphaBeta extends HeuristicGamer {
 		if (machine.isTerminal(currentState)) {
 			return new Score(machine.getGoal(currentState, getRole()));
 		} else if (depth == MAX_DEPTH) {
-			return new Score(evaluate(currentState));
+			return new Score(evaluate());
 		}
 		Score best = new Score(Integer.MIN_VALUE);
 		for (Move move : machine.getLegalMoves(currentState, getRole())) {
@@ -71,7 +72,7 @@ public class AlphaBeta extends HeuristicGamer {
 	}
 
 	@Override
-	protected Function<MachineState, Integer> getHeuristic() {
-		return Heuristics.dumb();
+	protected Function<StateMachineGamer, Integer> getHeuristic() {
+		return Heuristics::dumb;
 	}
 }
