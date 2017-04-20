@@ -1,7 +1,7 @@
 import java.util.List;
+import java.util.function.Function;
 
 import org.ggp.base.player.gamer.event.GamerSelectedMoveEvent;
-import org.ggp.base.player.gamer.statemachine.sample.SampleGamer;
 import org.ggp.base.util.game.Game;
 import org.ggp.base.util.statemachine.MachineState;
 import org.ggp.base.util.statemachine.Move;
@@ -10,10 +10,9 @@ import org.ggp.base.util.statemachine.exceptions.GoalDefinitionException;
 import org.ggp.base.util.statemachine.exceptions.MoveDefinitionException;
 import org.ggp.base.util.statemachine.exceptions.TransitionDefinitionException;
 
-public class AlphaBeta extends SampleGamer {
+public class AlphaBeta extends HeuristicGamer {
 	/**
-	 * Maximum recursive depth to search.
-	 * Enter -1 for infinite depth (i.e. evaluate entire tree)!
+	 * Maximum recursive depth to search. See docs in |MiniMax|.
 	 */
 	private static final int MAX_DEPTH = -1;
 
@@ -60,7 +59,7 @@ public class AlphaBeta extends SampleGamer {
 		if (machine.isTerminal(currentState)) {
 			return new Score(machine.getGoal(currentState, getRole()));
 		} else if (depth == MAX_DEPTH) {
-			return new Score(Heuristics.getDefault().evaluate(currentState));
+			return new Score(evaluate(currentState));
 		}
 		Score best = new Score(Integer.MIN_VALUE);
 		for (Move move : machine.getLegalMoves(currentState, getRole())) {
@@ -69,5 +68,10 @@ public class AlphaBeta extends SampleGamer {
 			a = Util.max(a, best.value);
 		}
 		return best;
+	}
+
+	@Override
+	protected Function<MachineState, Integer> getHeuristic() {
+		return Heuristics.dumb();
 	}
 }
