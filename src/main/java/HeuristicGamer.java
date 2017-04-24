@@ -1,12 +1,6 @@
-import java.util.function.Function;
-
-import org.ggp.base.player.gamer.statemachine.StateMachineGamer;
 import org.ggp.base.player.gamer.statemachine.sample.SampleGamer;
+import org.ggp.base.util.statemachine.exceptions.GoalDefinitionException;
 
 public abstract class HeuristicGamer extends SampleGamer {
-	protected abstract Function<StateMachineGamer, Integer> getHeuristic();
-
-	protected int evaluate() {
-		return getHeuristic().apply(this);
-	}
+	protected abstract int evaluate() throws GoalDefinitionException;
 }

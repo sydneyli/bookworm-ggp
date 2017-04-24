@@ -1,8 +1,6 @@
 import java.util.List;
-import java.util.function.Function;
 
 import org.ggp.base.player.gamer.event.GamerSelectedMoveEvent;
-import org.ggp.base.player.gamer.statemachine.StateMachineGamer;
 import org.ggp.base.util.game.Game;
 import org.ggp.base.util.statemachine.MachineState;
 import org.ggp.base.util.statemachine.Move;
@@ -71,7 +69,7 @@ public class MiniMax extends HeuristicGamer {
 	}
 
 	@Override
-	protected Function<StateMachineGamer, Integer> getHeuristic() {
-		return Heuristics::dumb;
+	protected int evaluate() throws GoalDefinitionException {
+		return Heuristics.dumb(this);
 	}
 }
