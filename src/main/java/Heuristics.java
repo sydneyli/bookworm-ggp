@@ -1,5 +1,6 @@
 import org.ggp.base.player.gamer.statemachine.StateMachineGamer;
 import org.ggp.base.util.statemachine.MachineState;
+import org.ggp.base.util.statemachine.Role;
 import org.ggp.base.util.statemachine.StateMachine;
 import org.ggp.base.util.statemachine.exceptions.GoalDefinitionException;
 import org.ggp.base.util.statemachine.exceptions.MoveDefinitionException;
@@ -49,16 +50,35 @@ public class Heuristics {
 	 * measure goal proximity, try using the goal value of the current state or (harder)
 	 * try to find "winning" terminal states and use similarity to these states as a
 	 * measure of goal proximity.
+
+	 * @throws GoalDefinitionException
 	 */
-	public static int goalProximity(StateMachineGamer gamerState) {
-		return 0;
+	public static int goalProximity(StateMachineGamer gamerState) throws GoalDefinitionException {
+		StateMachine stateMachine = gamerState.getStateMachine();
+		MachineState currentState = gamerState.getCurrentState();
+		return stateMachine.getGoal(currentState,gamerState.getRole());
 	}
 
 	/**
 	 * Implement an opponent mobility heuristic or an opponent focus heuristic.
 	 * Try your player out on a standard game of your choosing.
 	 */
-	public static int enemyMobility(StateMachineGamer gamerState) {
+
+	public static int enemyMobility(StateMachineGamer gamerState) throws GoalDefinitionException, MoveDefinitionException {
+		StateMachine stateMachine = gamerState.getStateMachine();
+		MachineState currentState = gamerState.getCurrentState();
+		if (stateMachine.isTerminal(currentState)) {
+			return stateMachine.getGoal(currentState, gamerState.getRole());
+		} else {
+			double numLegal = 1;
+			for (Role r: stateMachine.getRoles()) {
+				if (r.equals(gamerState.getRole())) {
+					continue;
+				}
+				numLegal *= stateMachine.getLegalMoves(currentState, r).size();
+				//numLegal /= currentState.
+			}
+		}
 		return 0;
 	}
 

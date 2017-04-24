@@ -13,7 +13,7 @@ public class AlphaBeta extends HeuristicGamer {
 	/**
 	 * Maximum recursive depth to search. See docs in |MiniMax|.
 	 */
-	private static final int MAX_DEPTH = 7;
+	private static final int MAX_DEPTH = 6;
 
 	@Override
 	public Move stateMachineSelectMove(long timeout)
