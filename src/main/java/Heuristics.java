@@ -91,8 +91,16 @@ public class Heuristics {
 	 * of other heuristics. Use this together with your various mobility and focus
 	 * heuristics. Once your player is ready to go, click on the link below to test
 	 * it out. Try changing the weights and see what happens.
+	 * @throws TransitionDefinitionException
+	 * @throws MoveDefinitionException
+	 * @throws GoalDefinitionException
 	 */
-	public static int combination(StateMachineGamer gamerStaet) {
-		return 0;
+	public static int combination(StateMachineGamer gamerState) throws GoalDefinitionException, MoveDefinitionException, TransitionDefinitionException {
+		double mobilityWeight = 0.25;
+		double goalProximityWeight = 0.50;
+		double enemyMobilityWeight = 0.25;
+		return (int) (mobilityWeight * mobility(gamerState)
+				+ goalProximityWeight * goalProximity(gamerState)
+				+ enemyMobilityWeight * enemyMobility(gamerState));
 	}
 }

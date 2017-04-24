@@ -71,6 +71,6 @@ public class AlphaBeta extends HeuristicGamer {
 
 	@Override
 	protected int evaluate() throws GoalDefinitionException, MoveDefinitionException, TransitionDefinitionException {
-		return Heuristics.enemyMobility(this);
+		return Heuristics.combination(this);
 	}
 }
