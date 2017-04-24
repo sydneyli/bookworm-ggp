@@ -2,6 +2,8 @@ import org.ggp.base.player.gamer.statemachine.StateMachineGamer;
 import org.ggp.base.util.statemachine.MachineState;
 import org.ggp.base.util.statemachine.StateMachine;
 import org.ggp.base.util.statemachine.exceptions.GoalDefinitionException;
+import org.ggp.base.util.statemachine.exceptions.MoveDefinitionException;
+import org.ggp.base.util.statemachine.exceptions.TransitionDefinitionException;
 
 /**
  * Manager for heuristics. May eventually want to record
@@ -13,9 +15,9 @@ public class Heuristics {
 		StateMachine stateMachine = gamerState.getStateMachine();
 		MachineState currentState = gamerState.getCurrentState();
 		if (stateMachine.isTerminal(currentState)) {
-			return 0;
+			return stateMachine.getGoal(currentState, gamerState.getRole()); //changed
 		} else {
-			return stateMachine.getGoal(currentState, gamerState.getRole());
+			return 0;
 		}
 	}
 
@@ -27,9 +29,19 @@ public class Heuristics {
 	 * number of legal actions. You may pick whichever of these you like. Alternatively,
 	 * implement a focus heuristic. (Given a game that is not able to search completely,
 	 * your player should favor moves that leave it with the fewest options.)
+	 * @throws MoveDefinitionException
+	 * @throws TransitionDefinitionException
 	 */
-	public static int mobility(StateMachineGamer gamerState) {
-		return 0;
+	public static int mobility(StateMachineGamer gamerState) throws GoalDefinitionException, MoveDefinitionException, TransitionDefinitionException{
+		StateMachine stateMachine = gamerState.getStateMachine();
+		MachineState currentState = gamerState.getCurrentState();
+		if (stateMachine.isTerminal(currentState)) {
+			return stateMachine.getGoal(currentState, gamerState.getRole());
+		} else {
+			int numMoves = stateMachine.getLegalMoves(currentState, gamerState.getRole()).size();
+			int numRoles = stateMachine.getNextStates(currentState, gamerState.getRole()).size();
+			return (int)((double)numMoves / numRoles * 100);
+		}
 	}
 
 	/**

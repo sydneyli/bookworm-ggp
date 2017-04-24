@@ -13,7 +13,7 @@ public class AlphaBeta extends HeuristicGamer {
 	/**
 	 * Maximum recursive depth to search. See docs in |MiniMax|.
 	 */
-	private static final int MAX_DEPTH = -1;
+	private static final int MAX_DEPTH = 7;
 
 	@Override
 	public Move stateMachineSelectMove(long timeout)
@@ -70,7 +70,7 @@ public class AlphaBeta extends HeuristicGamer {
 	}
 
 	@Override
-	protected int evaluate() throws GoalDefinitionException {
-		return Heuristics.dumb(this);
+	protected int evaluate() throws GoalDefinitionException, MoveDefinitionException, TransitionDefinitionException {
+		return Heuristics.mobility(this);
 	}
 }
