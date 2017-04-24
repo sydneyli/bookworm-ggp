@@ -71,15 +71,19 @@ public class Heuristics {
 			return stateMachine.getGoal(currentState, gamerState.getRole());
 		} else {
 			double numLegal = 1;
+			int num_roles = 0;
 			for (Role r: stateMachine.getRoles()) {
 				if (r.equals(gamerState.getRole())) {
 					continue;
 				}
+				num_roles += 1;
 				numLegal *= stateMachine.getLegalMoves(currentState, r).size();
-				//numLegal /= currentState.
+				numLegal /= stateMachine.findActions(r).size();
 			}
+			numLegal *= 100.0;
+			numLegal = 100 - numLegal;
+			return (int) numLegal;
 		}
-		return 0;
 	}
 
 	/**
