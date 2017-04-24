@@ -61,6 +61,10 @@ public class AlphaBeta extends HeuristicGamer {
 			return new Score(evaluate());
 		}
 		Score best = new Score(Integer.MIN_VALUE);
+		List<Move> moves = machine.getLegalMoves(currentState, getRole());
+		if (moves.size() == 1) {
+			return new Score(Integer.MIN_VALUE, moves.get(0));
+		}
 		for (Move move : machine.getLegalMoves(currentState, getRole())) {
 			if (b <= a) break;
 			best = Util.max(minR(currentState, move, depth, a, b), best);

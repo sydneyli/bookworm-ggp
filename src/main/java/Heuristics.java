@@ -40,8 +40,8 @@ public class Heuristics {
 			return stateMachine.getGoal(currentState, gamerState.getRole());
 		} else {
 			int numMoves = stateMachine.getLegalMoves(currentState, gamerState.getRole()).size();
-			int numRoles = stateMachine.getNextStates(currentState, gamerState.getRole()).size();
-			return (int)((double)numMoves / numRoles * 100);
+			int numActions = stateMachine.findActions(gamerState.getRole()).size();
+			return (int)((double)numMoves / numActions * 100);
 		}
 	}
 
