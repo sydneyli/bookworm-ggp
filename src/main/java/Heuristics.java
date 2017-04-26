@@ -62,7 +62,6 @@ public class Heuristics {
 	public static int goalProximity(StateMachineGamer gamerState) throws GoalDefinitionException {
 		StateMachine stateMachine = gamerState.getStateMachine();
 		MachineState currentState = gamerState.getCurrentState();
-		if (stateMachine.isTerminal(currentState)) System.out.println(stateMachine.getGoal(currentState,gamerState.getRole()));
 		return stateMachine.getGoal(currentState,gamerState.getRole());
 	}
 
@@ -107,9 +106,9 @@ public class Heuristics {
 	 * @throws GoalDefinitionException
 	 */
 	public static int combination(StateMachineGamer gamerState) throws GoalDefinitionException, MoveDefinitionException, TransitionDefinitionException {
-		double mobilityWeight = 0.25;
+		double mobilityWeight = 0.1;
 		double goalProximityWeight = 0.5;
-		double enemyMobilityWeight = 0.25;
+		double enemyMobilityWeight = 0.4;
 		return (int) (mobilityWeight * mobility(gamerState)
 				+ goalProximityWeight * goalProximity(gamerState)
 				+ enemyMobilityWeight * enemyMobility(gamerState));
