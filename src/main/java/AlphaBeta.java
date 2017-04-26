@@ -74,6 +74,7 @@ public class AlphaBeta extends HeuristicGamer {
 		//return Heuristics.dumb(this);
 		//return Heuristics.mobility(this);
 		//return Heuristics.goalProximity(this);
-		return Heuristics.enemyMobility(this);
+		//return Heuristics.enemyMobility(this);
+		return Heuristics.combination(this);
 	}
 }
