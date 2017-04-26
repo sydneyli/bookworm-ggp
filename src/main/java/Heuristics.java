@@ -27,9 +27,7 @@ public class Heuristics {
 	 * (Given a game that is not able to search completely, your player should favor
 	 * moves that leave it with the most options.) There are multiple ways this can
 	 * be done, e.g. one step mobility, n-step mobility, number of reachable states,
-	 * number of legal actions. You may pick whichever of these you like. Alternatively,
-	 * implement a focus heuristic. (Given a game that is not able to search completely,
-	 * your player should favor moves that leave it with the fewest options.)
+	 * number of legal actions. You may pick whichever of these you like.
 	 * @throws MoveDefinitionException
 	 * @throws TransitionDefinitionException
 	 */
@@ -39,10 +37,18 @@ public class Heuristics {
 		if (stateMachine.isTerminal(currentState)) {
 			return stateMachine.getGoal(currentState, gamerState.getRole());
 		} else {
-			int numMoves = stateMachine.getLegalMoves(currentState, gamerState.getRole()).size();
-			int numRoles = stateMachine.getNextStates(currentState, gamerState.getRole()).size();
-			return (int)((double)numMoves / numRoles * 100);
+			int nActions = stateMachine.getLegalMoves(currentState, gamerState.getRole()).size();
+			int nTotalActions = stateMachine.findActions(gamerState.getRole()).size();
+			return (int)((double)nActions / nTotalActions * 100);
 		}
+	}
+
+	/**
+	 * Implement a focus heuristic. (Given a game that is not able to search completely,
+	 * your player should favor moves that leave it with the fewest options.)
+	 */
+	public static int focus(StateMachineGamer gamerState) throws GoalDefinitionException, MoveDefinitionException, TransitionDefinitionException{
+		return 100 - mobility(gamerState);
 	}
 
 	/**
@@ -56,35 +62,40 @@ public class Heuristics {
 	public static int goalProximity(StateMachineGamer gamerState) throws GoalDefinitionException {
 		StateMachine stateMachine = gamerState.getStateMachine();
 		MachineState currentState = gamerState.getCurrentState();
+		if (stateMachine.isTerminal(currentState)) System.out.println(stateMachine.getGoal(currentState,gamerState.getRole()));
 		return stateMachine.getGoal(currentState,gamerState.getRole());
 	}
+
 
 	/**
 	 * Implement an opponent mobility heuristic or an opponent focus heuristic.
 	 * Try your player out on a standard game of your choosing.
 	 */
-
 	public static int enemyMobility(StateMachineGamer gamerState) throws GoalDefinitionException, MoveDefinitionException {
 		StateMachine stateMachine = gamerState.getStateMachine();
 		MachineState currentState = gamerState.getCurrentState();
 		if (stateMachine.isTerminal(currentState)) {
 			return stateMachine.getGoal(currentState, gamerState.getRole());
 		} else {
-			double numLegal = 1;
-			int num_roles = 0;
+			double numLegal = 1.0;
 			for (Role r: stateMachine.getRoles()) {
-				if (r.equals(gamerState.getRole())) {
-					continue;
-				}
-				num_roles += 1;
+				if (r.equals(gamerState.getRole())) continue;
 				numLegal *= stateMachine.getLegalMoves(currentState, r).size();
 				numLegal /= stateMachine.findActions(r).size();
 			}
 			numLegal *= 100.0;
-			numLegal = 100 - numLegal;
 			return (int) numLegal;
 		}
 	}
+
+	/**
+	 * Implement an opponent mobility heuristic or an opponent focus heuristic.
+	 * Try your player out on a standard game of your choosing.
+	 */
+	public static int enemyFocus(StateMachineGamer gamerState) throws GoalDefinitionException, MoveDefinitionException {
+		return 100 - enemyMobility(gamerState);
+	}
+
 
 	/**
 	 * Implement a method for evaluating moves based on a weighted combination
@@ -97,7 +108,7 @@ public class Heuristics {
 	 */
 	public static int combination(StateMachineGamer gamerState) throws GoalDefinitionException, MoveDefinitionException, TransitionDefinitionException {
 		double mobilityWeight = 0.25;
-		double goalProximityWeight = 0.50;
+		double goalProximityWeight = 0.5;
 		double enemyMobilityWeight = 0.25;
 		return (int) (mobilityWeight * mobility(gamerState)
 				+ goalProximityWeight * goalProximity(gamerState)
