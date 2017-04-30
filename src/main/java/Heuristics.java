@@ -113,4 +113,27 @@ public class Heuristics {
 				+ goalProximityWeight * goalProximity(gamerState)
 				+ enemyMobilityWeight * enemyMobility(gamerState));
 	}
+
+
+	/**
+	 * Implement a player that uses the Monte Carlo Search technique.
+	 * @throws GoalDefinitionException
+	 * @throws MoveDefinitionException
+	 * @throws TransitionDefinitionException
+	 */
+
+	public static int monteCarlo(StateMachineGamer gamerState) throws GoalDefinitionException, TransitionDefinitionException, MoveDefinitionException {
+		int probes = 4;
+		StateMachine stateMachine = gamerState.getStateMachine();
+		MachineState currentState = gamerState.getCurrentState();
+		double total = 0;
+		int[] theDepth = new int[1];
+		for (int i = 0; i < probes; i++) {
+			MachineState terminal = stateMachine.performDepthCharge(currentState, theDepth);
+			total = total + stateMachine.getGoal(terminal, gamerState.getRole());
+		}
+		return (int) total/probes;
+	}
+
+
 }
