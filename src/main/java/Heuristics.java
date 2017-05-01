@@ -121,7 +121,6 @@ public class Heuristics {
 	 * @throws MoveDefinitionException
 	 * @throws TransitionDefinitionException
 	 */
-
 	public static int monteCarlo(StateMachineGamer gamerState) throws GoalDefinitionException, TransitionDefinitionException, MoveDefinitionException {
 		int probes = 4;
 		StateMachine stateMachine = gamerState.getStateMachine();
