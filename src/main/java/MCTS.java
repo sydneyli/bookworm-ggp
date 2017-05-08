@@ -1,5 +1,6 @@
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Random;
 
 import org.ggp.base.player.gamer.event.GamerSelectedMoveEvent;
 import org.ggp.base.player.gamer.statemachine.sample.SampleGamer;
@@ -11,6 +12,7 @@ import org.ggp.base.util.statemachine.exceptions.TransitionDefinitionException;
 
 public class MCTS extends SampleGamer {
 	private volatile boolean shouldStop = false;
+	private volatile boolean debug = false;
 
     class Timeout extends Thread {
     	private static final int buffer = 3000;
@@ -53,20 +55,32 @@ public class MCTS extends SampleGamer {
     }
 
     double selectfn(MCNode node) {
-    	return Math.log(node.utility/node.visits) + Math.sqrt(2*Math.log(node.parent.visits)/node.visits);
+    	return Math.log((node.utility + 5)/node.visits) + 15 * Math.sqrt(Math.log(node.parent.visits)/node.visits);
     }
 
-    public MCNode select (MCNode node) {
+    public MCNode select (MCNode node, int depth, boolean settle) {
     	if (node.visits == 0 && node.parent == null) {
     		return node;
+    	}
+    	if (settle && depth > 1 && node.move == null) {
+    		return node;
+    	}
+    	if (depth > 500) {
+    		if (new Random().nextDouble() < 0.001) {
+    			System.out.println("Depth limit");
+    		}
+    		return null;
     	}
     	if (node.visits==0 && node.move == null) {
     		return node;
     	}
+    	if (getStateMachine().isTerminal(node.state)) {
+    		return null;
+    	}
 	    for (int i=0; i<node.children.size(); i++) {
 	    	MCNode child = node.children.get(i);
 	    	 if (child.visits==0) {
-	    		 return child;
+	    		 return select(child, depth + 1, settle);
 	    	 }
 	     }
 	     double score = 0;
@@ -81,7 +95,7 @@ public class MCTS extends SampleGamer {
 	        	  result=node.children.get(i);
 	          }
 	     };
-	     return select(result);
+	     return select(result, depth + 1, settle);
      }
 
     public boolean expand (MCNode node) throws MoveDefinitionException, TransitionDefinitionException {
@@ -96,27 +110,36 @@ public class MCTS extends SampleGamer {
     }
 
     public void addNewStates(MCNode node, Move move) throws MoveDefinitionException, TransitionDefinitionException {
-    	List<List<Move>> moves = getStateMachine().getLegalJointMoves(node.state, getRole(), move);
-    	if (moves.size() == 0) {
-    		for (int i = 0; i < 5000; i++) {
-    			System.out.println("No moves!");
-    		}
+    	if (node.move != null) {
+    		throw new MoveDefinitionException(node.state, getRole());
     	}
+    	List<List<Move>> moves = getStateMachine().getLegalJointMoves(node.state, getRole(), move);
     	MCNode newnode = new MCNode(node.state, 0, 0, node, new ArrayList<MCNode>(), move);
     	node.children.add(newnode);
     	for (List<Move> jointMove: moves) {
     		MachineState state = getStateMachine().getNextState(node.state, jointMove);
+    		//System.out.println("Made move " + move + " from " + node.state + " to " + state);
     		newnode.children.add(new MCNode(state, 0, 0, newnode, new ArrayList<MCNode>(), null));
     	}
     }
 
-    public boolean backpropagate (MCNode node, double score) {
+    public boolean backpropagateH(MCNode node, double score, MCNode base, int depth) {
     	node.visits = node.visits+1;
 	    node.utility = node.utility+score;
+	    if (node.move != null) {
+	    	if (node.move.toString().contains("mark 1 1")) {
+	    		//System.out.print("MARK ");
+	    	}
+	    	//System.out.println("node " + node.state + " " + node.move + " score " + score + " base " + base.state + " " + base.move + " depth " + depth);
+	    }
 	    if (node.parent != null) {
-	    	backpropagate(node.parent,score);
+	    	backpropagateH(node.parent,score, node, depth + 1);
 	    }
 	    return true;
+    }
+
+    public boolean backpropagate (MCNode node, double score) {
+    	return backpropagateH(node, score, node, 0);
 	}
 
 	@Override
@@ -128,9 +151,12 @@ public class MCTS extends SampleGamer {
 		MCNode root = new MCNode(getCurrentState(), 0, 0, null, new ArrayList<MCNode>(), null);
 		int num = 0;
 		int numBad = 0;
+		int numContinues = 0;
 		while (!shouldStop) {
-			MCNode s = select(root);
+			boolean settle = numContinues > num;
+			MCNode s = select(root, 0, settle);
 			if (s == null) {
+				numContinues++;
 				continue;
 			}
 			expand(s);
@@ -139,10 +165,13 @@ public class MCTS extends SampleGamer {
 			double score = 0;
 			if (terminal != null) {
 				score = (double) getStateMachine().getGoal(terminal, getRole());
+			} else {
+				System.out.println("hmm, terminal state is null");
 			}
+			//System.out.println("Score " + score + " state " + terminal);
 			backpropagate(s, score);
 			num++;
-			if (num % 3000 == 0) {
+			if (num % 50 == 0) {
 				System.out.println("Performed " + num + " depth charges " + numBad + " errors, got score " + score);
 			}
 		}
@@ -152,7 +181,7 @@ public class MCTS extends SampleGamer {
 		Move bestMove = null;
 		for (int i = 0; i < root.children.size(); i++) {
 			MCNode n = root.children.get(i);
-			System.out.println("Considering node, visited " + n.visits + " times, move " + n.move + ", value " + n.utility + ", num children " + n.children.size());
+			System.out.println("Considering node, visited " + n.visits + " times, move " + n.move + ", value " + n.utility / n.visits + ", num children " + n.children.size());
 			if ((n.utility / n.visits) > bestScore) {
 				bestScore = (n.utility / n.visits);
 				bestMove = n.move;

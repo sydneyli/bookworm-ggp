@@ -454,7 +454,7 @@ public abstract class StateMachine
             nDepth++;
             state = getNextStateDestructively(state, getRandomJointMove(state));
             if (nDepth > 250) {
-            	theDepth[0] = nDepth;
+            	System.out.println("Maximum depth exceeded");
             	return null;
             }
         }
