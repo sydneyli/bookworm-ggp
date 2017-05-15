@@ -56,8 +56,7 @@ public class SamplePropNetStateMachine extends StateMachine {
      */
     @Override
     public boolean isTerminal(MachineState state) {
-        // TODO: Compute whether the MachineState is terminal.
-        return false;
+        return propNet.getTerminalProposition().getValue();
     }
 
     /**
@@ -67,11 +66,21 @@ public class SamplePropNetStateMachine extends StateMachine {
      * proposition true for that role, then you should throw a
      * GoalDefinitionException because the goal is ill-defined.
      */
-    @Override
+    @SuppressWarnings("null")
+	@Override
     public int getGoal(MachineState state, Role role)
             throws GoalDefinitionException {
-        // TODO: Compute the goal for role in state.
-        return -1;
+    	Set<Proposition> goals = propNet.getGoalPropositions().get(role);
+    	Proposition goal = null;
+    	for (Proposition curr: goals) {
+    		if (goal.getValue()) {
+    			if (goal != null) {
+    				throw new GoalDefinitionException(state, role);
+    			}
+    			goal = curr;
+    		}
+    	}
+    	return getGoalValue(goal);
     }
 
     /**
@@ -81,8 +90,9 @@ public class SamplePropNetStateMachine extends StateMachine {
      */
     @Override
     public MachineState getInitialState() {
-        // TODO: Compute the initial state.
-        return null;
+    	propNet.getInitProposition().setValue(true);
+    	getStateFromBase(); //not sure if this is right?
+    	return null;
     }
 
     /**
@@ -101,8 +111,14 @@ public class SamplePropNetStateMachine extends StateMachine {
     @Override
     public List<Move> getLegalMoves(MachineState state, Role role)
             throws MoveDefinitionException {
-        // TODO: Compute legal moves.
-        return null;
+    	List<Move> moves = new ArrayList<Move>();
+    	Set<Proposition> propositions = propNet.getLegalPropositions().get(role);
+    	for (Proposition p: propositions) {
+    		if (p.getValue()) {
+    			moves.add(getMoveFromProposition(p));
+    		}
+    	}
+        return moves;
     }
 
     /**

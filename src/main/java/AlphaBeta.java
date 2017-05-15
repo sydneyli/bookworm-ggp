@@ -121,11 +121,6 @@ public class AlphaBeta extends HeuristicGamer {
 
 	@Override
 	protected int evaluate() throws GoalDefinitionException, MoveDefinitionException, TransitionDefinitionException {
-//		try {
-			return Heuristics.goalProximity(this);
-//		} catch (Exception e) {
-//			System.out.println("BAD");
-//		}
-//		return 0;
+		return Heuristics.monteCarlo(this);
 	}
 }
