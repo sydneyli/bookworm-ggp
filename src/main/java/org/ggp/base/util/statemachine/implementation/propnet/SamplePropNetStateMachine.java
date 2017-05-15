@@ -56,8 +56,7 @@ public class SamplePropNetStateMachine extends StateMachine {
      */
     @Override
     public boolean isTerminal(MachineState state) {
-        // TODO: Compute whether the MachineState is terminal.
-        return false;
+        return propNet.getTerminalProposition().getValue();
     }
 
     /**
@@ -70,7 +69,17 @@ public class SamplePropNetStateMachine extends StateMachine {
     @Override
     public int getGoal(MachineState state, Role role)
             throws GoalDefinitionException {
-        // TODO: Compute the goal for role in state.
+        // TODO: Figure out what to return -- consider Proposition name (GdlSentence?)
+    	Set<Proposition> goals = propNet.getGoalPropositions().get(role);
+    	Proposition goal = null;
+    	for (Proposition curr: goals) {
+    		if (goal.getValue()) {
+    			if (goal != null) {
+    				throw new GoalDefinitionException(state, role);
+    			}
+    			goal = curr;
+    		}
+    	}
         return -1;
     }
 
