@@ -66,10 +66,10 @@ public class SamplePropNetStateMachine extends StateMachine {
      * proposition true for that role, then you should throw a
      * GoalDefinitionException because the goal is ill-defined.
      */
-    @Override
+    @SuppressWarnings("null")
+	@Override
     public int getGoal(MachineState state, Role role)
             throws GoalDefinitionException {
-        // TODO: Figure out what to return -- consider Proposition name (GdlSentence?)
     	Set<Proposition> goals = propNet.getGoalPropositions().get(role);
     	Proposition goal = null;
     	for (Proposition curr: goals) {
@@ -80,7 +80,7 @@ public class SamplePropNetStateMachine extends StateMachine {
     			goal = curr;
     		}
     	}
-        return -1;
+    	return getGoalValue(goal);
     }
 
     /**
@@ -90,8 +90,9 @@ public class SamplePropNetStateMachine extends StateMachine {
      */
     @Override
     public MachineState getInitialState() {
-        // TODO: Compute the initial state.
-        return null;
+    	propNet.getInitProposition().setValue(true);
+    	getStateFromBase(); //not sure if this is right?
+    	return null;
     }
 
     /**
@@ -110,8 +111,14 @@ public class SamplePropNetStateMachine extends StateMachine {
     @Override
     public List<Move> getLegalMoves(MachineState state, Role role)
             throws MoveDefinitionException {
-        // TODO: Compute legal moves.
-        return null;
+    	List<Move> moves = new ArrayList<Move>();
+    	Set<Proposition> propositions = propNet.getLegalPropositions().get(role);
+    	for (Proposition p: propositions) {
+    		if (p.getValue()) {
+    			moves.add(getMoveFromProposition(p));
+    		}
+    	}
+        return moves;
     }
 
     /**
