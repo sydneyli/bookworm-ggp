@@ -75,13 +75,14 @@ public class MCTS extends SampleGamer {
     }
 
     double selectfn(MCNode node) {
-    	return new Random().nextDouble();//Math.log(5 + node.utility/node.visits) + 50 * Math.log(node.parent.visits)/node.visits;
+    	return new Random().nextDouble();
     }
 
-    public MCNode select (MCNode node, int depth, boolean settle) {
+    public MCNode select (MCNode node, int depth, int[] numContinues, int num) {
     	if (depth == 1 && !node.semaphore.tryAcquire()) {
     		return null;
     	}
+    	boolean settle = numContinues[0] > num;
     	if ((node.visits == 0 && node.parent == null) || (settle && depth > 1 && node.move == null)) {
     		return node;
     	}
@@ -93,23 +94,26 @@ public class MCTS extends SampleGamer {
     	}
     	if (depth > 500) {
     		System.out.println("Depth limit");
+    		numContinues[0]++;
     		return null;
     	}
     	if (node.visits==0 && node.move == null) {
     		return node;
     	}
     	if (getStateMachine().isTerminal(node.state)) {
+    		numContinues[0]++;
     		return null;
     	}
 	    for (int i=0; i<node.children.size(); i++) {
 	    	MCNode child = node.children.get(i);
 	    	 if (child.visits==0) {
-	    		 return select(child, depth + 1, settle);
+	    		 return select(child, depth + 1, numContinues, num);
 	    	 }
 	     }
 	     double score = -1;
 	     MCNode result = node;
 	     if (node.children.size() == 0) {
+	    	 numContinues[0]++;
 	    	 return null;
 	     }
 	     for (int i=0; i<node.children.size(); i++) {
@@ -124,9 +128,10 @@ public class MCTS extends SampleGamer {
 	     }
 
 	     if (result == node || score < 0) {
+	    	 numContinues[0]++;
 	    	 return null;
 	     }
-	     return select(result, depth + 1, settle);
+	     return select(result, depth + 1, numContinues, num);
      }
 
     public boolean expand (MCNode node) throws MoveDefinitionException, TransitionDefinitionException {
@@ -206,12 +211,12 @@ public class MCTS extends SampleGamer {
     private void expandTree() throws MoveDefinitionException, TransitionDefinitionException, GoalDefinitionException {
 		int num = 0;
 		int numBad = 0;
-		int numContinues = 0;
+		int[] numContinues = new int[1];
+		numContinues[0] = 0;
 		while (!shouldStop) {
-			boolean settle = numContinues > num;
-			MCNode s = select(root, 0, settle);
+			//boolean settle = numContinues > num;
+			MCNode s = select(root, 0, numContinues, num);
 			if (s == null) {
-				numContinues++;
 				continue;
 			}
 			expand(s);
@@ -249,6 +254,37 @@ public class MCTS extends SampleGamer {
 		releaseLocks(s.parent);
 	}
 
+
+	private void testDepth(MCNode n, int depth, int[] numProcessed, int[] numPositive, int[] sumPositive, int[] minDepth, int[] maxDepth, int[] totalDepth) {
+		final int printDepth = 3;
+		if (debug) {
+			if (n.children.size() == 0) {
+				minDepth[0] = Math.min(minDepth[0], depth);
+				maxDepth[0] = Math.max(maxDepth[0], depth);
+				totalDepth[0] += depth;
+			}
+			if (numProcessed[0] > 10000) {
+				System.out.println("Warning: node overflow");
+				return;
+			}
+			numProcessed[0]++;
+
+			if (depth == printDepth) {
+				if (new Random().nextFloat() < 1) {
+					System.out.println("Node utility " + n.utility / n.visits + " visits " + n.visits + " depth " + depth);
+				}
+
+				if (n.visits > 0) {
+					numPositive[0]++;
+					sumPositive[0] += n.visits;
+				}
+			}
+			for (MCNode child: n.children) {
+				testDepth(child, depth + 1, numProcessed, numPositive, sumPositive, minDepth, maxDepth, totalDepth);
+			}
+		}
+	}
+
 	@Override
 	public Move stateMachineSelectMove(long timeout) throws TransitionDefinitionException, MoveDefinitionException, GoalDefinitionException {
 		long start = System.currentTimeMillis();
@@ -279,6 +315,17 @@ public class MCTS extends SampleGamer {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
 		}
+
+		int[] numProcessed = new int[1];
+		int[] numPositive = new int[1];
+		int[] sumPositive = new int[1];
+		int[] minDepth = new int[1];
+		int[] maxDepth = new int[1];
+		int[] totalDepth = new int[1];
+		minDepth[0] = 100000;
+		testDepth(root, 0, numProcessed, numPositive, sumPositive, minDepth, maxDepth, totalDepth);
+		System.out.println(numProcessed[0] + " processed, " + numPositive[0] + " nodes visited, " + sumPositive[0] + " total visits");
+		System.out.println(minDepth[0] + " mindepth, " + maxDepth[0] + " maxDepth, " + ((float) totalDepth[0]) / numProcessed[0] + " totaldepth");
 
 		double bestScore = -1;
 		Move bestMove = null;
