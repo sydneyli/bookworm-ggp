@@ -1,6 +1,7 @@
 package org.ggp.base.util.statemachine.implementation.propnet;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashSet;
 import java.util.LinkedList;
 import java.util.List;
@@ -58,7 +59,8 @@ public class SamplePropNetStateMachine extends StateMachine {
      */
     @Override
     public boolean isTerminal(MachineState state) {
-        return propNet.getTerminalProposition().getValue();
+    	markBases(state.getContents());
+        return propMark(propNet.getTerminalProposition());
     }
 
     /**
@@ -68,21 +70,15 @@ public class SamplePropNetStateMachine extends StateMachine {
      * proposition true for that role, then you should throw a
      * GoalDefinitionException because the goal is ill-defined.
      */
-    @SuppressWarnings("null")
 	@Override
     public int getGoal(MachineState state, Role role)
             throws GoalDefinitionException {
+    	markBases(state.getContents());
     	Set<Proposition> goals = propNet.getGoalPropositions().get(role);
-    	Proposition goal = null;
-    	for (Proposition curr: goals) {
-    		if (goal.getValue()) {
-    			if (goal != null) {
-    				throw new GoalDefinitionException(state, role);
-    			}
-    			goal = curr;
-    		}
+    	for (Proposition g : goals) {
+    		if (propMark(g)) return getGoalValue(g);
     	}
-    	return getGoalValue(goal);
+    	return 0;
     }
 
     /**
@@ -113,14 +109,11 @@ public class SamplePropNetStateMachine extends StateMachine {
     @Override
     public List<Move> getLegalMoves(MachineState state, Role role)
             throws MoveDefinitionException {
-    	List<Move> moves = new ArrayList<Move>();
-    	Set<Proposition> propositions = propNet.getLegalPropositions().get(role);
-    	for (Proposition p: propositions) {
-    		if (p.getValue()) {
-    			moves.add(getMoveFromProposition(p));
-    		}
-    	}
-        return moves;
+    	markBases(state.getContents());
+     	return propNet.getLegalPropositions().get(role).stream()
+                      .filter(this::propMark)
+                      .map(SamplePropNetStateMachine::getMoveFromProposition)
+                      .collect(Collectors.toList());
     }
 
     /**
@@ -129,8 +122,14 @@ public class SamplePropNetStateMachine extends StateMachine {
     @Override
     public MachineState getNextState(MachineState state, List<Move> moves)
             throws TransitionDefinitionException {
-        // TODO: Compute the next state.
-        return null;
+    	markActions(toDoes(moves));
+    	markBases(state.getContents());
+    	propNet.getBasePropositions().values().stream()
+               .map(Component::getSingleInput)
+               .map(Component::getSingleInput)
+               .map(this::propMark);
+        // TODO (sydli) Do we need to revert the mutated state?
+        return getStateFromBase();
     }
 
     /**
@@ -164,39 +163,34 @@ public class SamplePropNetStateMachine extends StateMachine {
         Queue<Proposition> search = new LinkedList<>(propositions.stream()
         		.filter(prop -> prop.getInputs().isEmpty()).collect(Collectors.toList()));
 
-        while (!search.isEmpty()) {
-        	// 2. Add popped node to ordering
-        	Proposition node = search.remove();
-        	order.add(node);
-            // 3. Remove this node's output edges from graph
-        	for (Component edge : node.getOutputs()) {
-        		assert(!(edge instanceof Proposition)); // neighbor gotta be logical gate or transition
-        		edges.remove(edge);
+        return propositions;
 
-        		// Functional
-        		edge.getOutputs().stream()
-                    // 3A. Remove this edge as input to connected nodes
-                    .map(prop -> {prop.removeInput(edge); return (Proposition) prop;})
-                    // 3B. Add connected nodes with no inputs to search queue
-                    .filter(prop -> prop.getInputs().isEmpty())
-                    .forEach(search::add);
-        		// Imperative
-        		// for (Component neighbor : edge.getOutputs()) {
-        		// 	assert(neighbor instanceof Proposition);
-        		// 	neighbor.removeInput(edge);
-        		// 	if (neighbor.getInputs().isEmpty()) {
-        		// 		search.add((Proposition) neighbor);
-        		// 	}
-        		// }
-        	}
-        }
-        if (!edges.isEmpty()) {
-        	throw new RuntimeException("Oh no!!! there are still edges left... detected cycle in propnet during toposort");
-        }
-        // 4. Exempt base/input props
-        order.stream().filter(prop -> !isBaseOrInput(prop))
-                      .collect(Collectors.toList());
-        return order;
+//         while (!search.isEmpty()) {
+//         	// 2. Add popped node to ordering
+//         	Proposition node = search.remove();
+//         	order.add(node);
+//             // 3. Remove this node's output edges from graph
+//         	for (Component edge : node.getOutputs()) {
+//         		assert(!(edge instanceof Proposition)); // neighbor gotta be logical gate or transition
+//         		edges.remove(edge);
+//
+//         		// Imperative
+//         		for (Component neighbor : edge.getOutputs()) {
+//         			assert(neighbor instanceof Proposition);
+//         			neighbor.removeInput(edge);
+//         			if (neighbor.getInputs().isEmpty()) {
+//         				search.add((Proposition) neighbor);
+//         			}
+//         		}
+//         	}
+//         }
+//         if (!edges.isEmpty()) {
+//         	throw new RuntimeException("Oh no!!! there are still edges left... detected cycle in propnet during toposort");
+//         }
+//         // 4. Exempt base/input props
+//         order.stream().filter(prop -> !isBaseOrInput(prop))
+//                       .collect(Collectors.toList());
+//         return order;
     }
 
     private boolean isBaseOrInput(Component p) {
@@ -258,23 +252,23 @@ public class SamplePropNetStateMachine extends StateMachine {
         return Integer.parseInt(constant.toString());
     }
 
-    private void markBases(Map<GdlSentence, Boolean> baseMarks) {
-    	baseMarks.entrySet().stream().forEach(
-    			e -> propNet.getBasePropositions().get(e.getKey())
-                            .setValue(e.getValue()));
+    private void markProps(Set<GdlSentence> marks, Map<GdlSentence, Proposition> props) {
+    	props.keySet().forEach(sentence -> props.get(sentence).setValue(marks.contains(sentence)));
     }
 
-    private void markActions(Map<GdlSentence, Boolean> actionMarks) {
-     	actionMarks.entrySet().stream().forEach(
-    			e -> propNet.getInputPropositions().get(e.getKey())
-                            .setValue(e.getValue()));
+    private void markBases(Set<GdlSentence> baseMarks) {
+    	markProps(baseMarks, propNet.getBasePropositions());
+    }
+
+    private void markActions(List<GdlSentence> actionMarks) {
+    	markProps(new HashSet<>(actionMarks), propNet.getInputPropositions());
     }
 
     private void clearMarks() {
-    	propNet.getBasePropositions().values().forEach(base -> base.setValue(false));
+    	markProps(Collections.emptySet(), propNet.getBasePropositions());
     }
 
-    private boolean markProp(Component prop) {
+    private boolean propMark(Component prop) {
     	if (isBaseOrInput(prop)) return prop.getValue();
     	return prop.mark();
     }
