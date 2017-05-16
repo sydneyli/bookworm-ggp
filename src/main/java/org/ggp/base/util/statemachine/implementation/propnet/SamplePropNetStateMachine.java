@@ -47,7 +47,8 @@ public class SamplePropNetStateMachine extends StateMachine {
         try {
             propNet = OptimizingPropNetFactory.create(description);
             roles = propNet.getRoles();
-            ordering = getOrdering();
+            // TODO (sydli): toposort broken :'(
+            // ordering = getOrdering();
         } catch (InterruptedException e) {
             throw new RuntimeException(e);
         }
@@ -110,9 +111,9 @@ public class SamplePropNetStateMachine extends StateMachine {
     public List<Move> getLegalMoves(MachineState state, Role role)
             throws MoveDefinitionException {
     	markBases(state.getContents());
-     	return propNet.getLegalPropositions().get(role).stream()
-                      .filter(this::propMark)
-                      .map(SamplePropNetStateMachine::getMoveFromProposition)
+     	return propNet.getLegalPropositions().get(role).stream() 			  // Gets all legal props for this role!
+                      .filter(this::propMark)  								  // Only use the props that are marked true
+                      .map(SamplePropNetStateMachine::getMoveFromProposition) // Prop -> Move
                       .collect(Collectors.toList());
     }
 
@@ -124,11 +125,11 @@ public class SamplePropNetStateMachine extends StateMachine {
             throws TransitionDefinitionException {
     	markActions(toDoes(moves));
     	markBases(state.getContents());
-    	propNet.getBasePropositions().values().stream()
-               .map(Component::getSingleInput)
-               .map(Component::getSingleInput)
-               .map(this::propMark);
-        // TODO (sydli) Do we need to revert the mutated state?
+    	propNet.getBasePropositions().values().stream()		// Get all base propositions
+               .map(Component::getSingleInput)				// prop.source
+               .map(Component::getSingleInput)				// prop.souce.source
+               .forEach(this::propMark);					// propagates the mark
+        // TODO (sydli) Do we need to revert the mutated state back to original?
         return getStateFromBase();
     }
 
@@ -163,34 +164,32 @@ public class SamplePropNetStateMachine extends StateMachine {
         Queue<Proposition> search = new LinkedList<>(propositions.stream()
         		.filter(prop -> prop.getInputs().isEmpty()).collect(Collectors.toList()));
 
-        return propositions;
+        while (!search.isEmpty()) {
+        	// 2. Add popped node to ordering
+        	Proposition node = search.remove();
+        	order.add(node);
+            // 3. Remove this node's output edges from graph
+        	for (Component edge : node.getOutputs()) {
+        		assert(!(edge instanceof Proposition)); // neighbor gotta be logical gate or transition
+        		edges.remove(edge);
 
-//         while (!search.isEmpty()) {
-//         	// 2. Add popped node to ordering
-//         	Proposition node = search.remove();
-//         	order.add(node);
-//             // 3. Remove this node's output edges from graph
-//         	for (Component edge : node.getOutputs()) {
-//         		assert(!(edge instanceof Proposition)); // neighbor gotta be logical gate or transition
-//         		edges.remove(edge);
-//
-//         		// Imperative
-//         		for (Component neighbor : edge.getOutputs()) {
-//         			assert(neighbor instanceof Proposition);
-//         			neighbor.removeInput(edge);
-//         			if (neighbor.getInputs().isEmpty()) {
-//         				search.add((Proposition) neighbor);
-//         			}
-//         		}
-//         	}
-//         }
-//         if (!edges.isEmpty()) {
-//         	throw new RuntimeException("Oh no!!! there are still edges left... detected cycle in propnet during toposort");
-//         }
-//         // 4. Exempt base/input props
-//         order.stream().filter(prop -> !isBaseOrInput(prop))
-//                       .collect(Collectors.toList());
-//         return order;
+        		// TODO(sydli): I think this part is wrong-- double-check?
+        		for (Component neighbor : edge.getOutputs()) {
+        			assert(neighbor instanceof Proposition);
+        			neighbor.removeInput(edge);
+        			if (neighbor.getInputs().isEmpty()) {
+        				search.add((Proposition) neighbor);
+        			}
+        		}
+        	}
+        }
+        if (!edges.isEmpty()) {
+        	throw new RuntimeException("Oh no!!! there are still edges left... detected cycle in propnet during toposort");
+        }
+        // 4. Exempt base/input props
+        order.stream().filter(prop -> !isBaseOrInput(prop))
+                      .collect(Collectors.toList());
+        return order;
     }
 
     private boolean isBaseOrInput(Component p) {
