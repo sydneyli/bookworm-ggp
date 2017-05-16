@@ -34,4 +34,9 @@ public final class Or extends Component
 	{
 		return toDot("ellipse", "grey", "OR");
 	}
+
+	@Override
+	public boolean mark() {
+		return getInputs().stream().map(comp -> comp.getValue()).anyMatch(b -> b);
+	}
 }

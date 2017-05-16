@@ -153,4 +153,5 @@ public abstract class Component implements Serializable
         return sb.toString();
     }
 
+    public abstract boolean mark();
 }

@@ -180,7 +180,6 @@ public class SamplePropNetStateMachine extends StateMachine {
                     // 3B. Add connected nodes with no inputs to search queue
                     .filter(prop -> prop.getInputs().isEmpty())
                     .forEach(search::add);
-
         		// Imperative
         		// for (Component neighbor : edge.getOutputs()) {
         		// 	assert(neighbor instanceof Proposition);
@@ -195,10 +194,14 @@ public class SamplePropNetStateMachine extends StateMachine {
         	throw new RuntimeException("Oh no!!! there are still edges left... detected cycle in propnet during toposort");
         }
         // 4. Exempt base/input props
-        order.stream().filter(prop -> !propNet.getBasePropositions().values().contains(prop) &&
-        							  !propNet.getInputPropositions().values().contains(prop))
+        order.stream().filter(prop -> !isBaseOrInput(prop))
                       .collect(Collectors.toList());
         return order;
+    }
+
+    private boolean isBaseOrInput(Component p) {
+    	return propNet.getBasePropositions().values().contains(p) ||
+    		propNet.getInputPropositions().values().contains(p);
     }
 
     /* Already implemented for you */
@@ -255,6 +258,27 @@ public class SamplePropNetStateMachine extends StateMachine {
         return Integer.parseInt(constant.toString());
     }
 
+    private void markBases(Map<GdlSentence, Boolean> baseMarks) {
+    	baseMarks.entrySet().stream().forEach(
+    			e -> propNet.getBasePropositions().get(e.getKey())
+                            .setValue(e.getValue()));
+    }
+
+    private void markActions(Map<GdlSentence, Boolean> actionMarks) {
+     	actionMarks.entrySet().stream().forEach(
+    			e -> propNet.getInputPropositions().get(e.getKey())
+                            .setValue(e.getValue()));
+    }
+
+    private void clearMarks() {
+    	propNet.getBasePropositions().values().forEach(base -> base.setValue(false));
+    }
+
+    private boolean markProp(Component prop) {
+    	if (isBaseOrInput(prop)) return prop.getValue();
+    	return prop.mark();
+    }
+
     /**
      * A Naive implementation that computes a PropNetMachineState
      * from the true BasePropositions.  This is correct but slower than more advanced implementations
@@ -271,7 +295,6 @@ public class SamplePropNetStateMachine extends StateMachine {
             {
                 contents.add(p.getName());
             }
-
         }
         return new MachineState(contents);
     }

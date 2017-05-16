@@ -27,4 +27,9 @@ public final class Transition extends Component
 	{
 		return toDot("box", "grey", "TRANSITION");
 	}
+
+	@Override
+	public boolean mark() {
+		return false; // Huhhh what here mang
+	}
 }
