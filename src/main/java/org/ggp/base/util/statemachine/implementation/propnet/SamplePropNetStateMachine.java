@@ -5,7 +5,9 @@ import java.util.HashSet;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
+import java.util.Queue;
 import java.util.Set;
+import java.util.stream.Collectors;
 
 import org.ggp.base.util.gdl.grammar.Gdl;
 import org.ggp.base.util.gdl.grammar.GdlConstant;
@@ -150,14 +152,52 @@ public class SamplePropNetStateMachine extends StateMachine {
         // List to contain the topological ordering.
         List<Proposition> order = new LinkedList<Proposition>();
 
-        // All of the components in the PropNet
-        List<Component> components = new ArrayList<Component>(propNet.getComponents());
-
         // All of the propositions in the PropNet.
         List<Proposition> propositions = new ArrayList<Proposition>(propNet.getPropositions());
 
-        // TODO: Compute the topological ordering.
+        // All of the edges in the PropNet
+        Set<Component> edges = new HashSet<>(propNet.getComponents());
+        edges.removeAll(propositions);
 
+        // Kahn's algorithm
+        // 1. Init search to list of all nodes with no input
+        Queue<Proposition> search = new LinkedList<>(propositions.stream()
+        		.filter(prop -> prop.getInputs().isEmpty()).collect(Collectors.toList()));
+
+        while (!search.isEmpty()) {
+        	// 2. Add popped node to ordering
+        	Proposition node = search.remove();
+        	order.add(node);
+            // 3. Remove this node's output edges from graph
+        	for (Component edge : node.getOutputs()) {
+        		assert(!(edge instanceof Proposition)); // neighbor gotta be logical gate or transition
+        		edges.remove(edge);
+
+        		// Functional
+        		edge.getOutputs().stream()
+                    // 3A. Remove this edge as input to connected nodes
+                    .map(prop -> {prop.removeInput(edge); return (Proposition) prop;})
+                    // 3B. Add connected nodes with no inputs to search queue
+                    .filter(prop -> prop.getInputs().isEmpty())
+                    .forEach(search::add);
+
+        		// Imperative
+        		// for (Component neighbor : edge.getOutputs()) {
+        		// 	assert(neighbor instanceof Proposition);
+        		// 	neighbor.removeInput(edge);
+        		// 	if (neighbor.getInputs().isEmpty()) {
+        		// 		search.add((Proposition) neighbor);
+        		// 	}
+        		// }
+        	}
+        }
+        if (!edges.isEmpty()) {
+        	throw new RuntimeException("Oh no!!! there are still edges left... detected cycle in propnet during toposort");
+        }
+        // 4. Exempt base/input props
+        order.stream().filter(prop -> !propNet.getBasePropositions().values().contains(prop) &&
+        							  !propNet.getInputPropositions().values().contains(prop))
+                      .collect(Collectors.toList());
         return order;
     }
 
