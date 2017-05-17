@@ -30,6 +30,6 @@ public final class Transition extends Component
 
 	@Override
 	public boolean mark() {
-		return false; // Huhhh what here mang
+		return getSingleInput().mark();
 	}
 }

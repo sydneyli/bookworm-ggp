@@ -49,11 +49,11 @@ public abstract class SampleGamer extends StateMachineGamer
 	public StateMachine getInitialStateMachine() {
 		oldStateMachine =  new CachedStateMachine(new ProverStateMachine());
 		propNetStateMachine =  new CachedStateMachine(new SamplePropNetStateMachine());
-		return oldStateMachine;
+		return propNetStateMachine;
 	}
 
 	public StateMachine getOldStateMachine() {
-		return propNetStateMachine;
+		return oldStateMachine;
 	}
 
 	// This is the defaul Sample Panel
