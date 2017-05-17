@@ -93,7 +93,7 @@ public class SamplePropNetStateMachine extends StateMachine {
     @Override
     public MachineState getInitialState() {
     	propNet.getInitProposition().setValue(true);
-    	return getStateFromBase(); //not sure if this is right?
+    	return getStateFromBase();
     }
 
     /**
@@ -270,6 +270,7 @@ public class SamplePropNetStateMachine extends StateMachine {
     }
 
     private boolean propMark(Component prop) {
+    	//return prop.mark(this::isBaseOrInput);
 		if (isBaseOrInput(prop)) return prop.getValue();
 		if (prop instanceof And) return and(prop);
 		if (prop instanceof Transition) return or(prop);

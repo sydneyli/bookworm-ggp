@@ -23,13 +23,7 @@ public final class Transition extends Component
 	 * @see org.ggp.base.util.propnet.architecture.Component#toString()
 	 */
 	@Override
-	public String toString()
-	{
+	public String toString() {
 		return toDot("box", "grey", "TRANSITION");
-	}
-
-	@Override
-	public boolean mark() {
-		return getSingleInput().mark();
 	}
 }
