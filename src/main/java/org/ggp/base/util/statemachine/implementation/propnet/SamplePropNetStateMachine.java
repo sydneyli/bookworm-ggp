@@ -102,8 +102,9 @@ public class SamplePropNetStateMachine extends StateMachine {
     @Override
     public List<Move> findActions(Role role)
             throws MoveDefinitionException {
-    	// TODO (sydli): this is wrong
-    	return getLegalMoves(getInitialState(), role);
+    	return propNet.getLegalPropositions().get(role).stream()
+    			.map(SamplePropNetStateMachine::getMoveFromProposition)
+    			.collect(Collectors.toList());
     }
 
     /**
