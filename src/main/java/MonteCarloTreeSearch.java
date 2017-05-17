@@ -11,12 +11,13 @@ import org.ggp.base.util.statemachine.exceptions.MoveDefinitionException;
 import org.ggp.base.util.statemachine.exceptions.TransitionDefinitionException;
 
 public class MonteCarloTreeSearch {
+	public static final int N_DEPTH_CHARGES = 10;
     abstract class Node {
     	protected int visits = 0;
     	protected double utility = 0;
-    	protected final Optional<Node> parent;
     	protected final MachineState state;
-    	protected List<Node> children = new ArrayList<>();
+    	final Optional<Node> parent;
+    	List<Node> children = new ArrayList<>();
 
     	protected Node(MachineState state, Optional<Node> parent) {
     		this.state = state;
@@ -61,7 +62,6 @@ public class MonteCarloTreeSearch {
     		utility += score;
     		parent.ifPresent(n -> n.backpropagate(score));
     	}
-
     }
 
     class MinNode extends Node {
@@ -80,14 +80,6 @@ public class MonteCarloTreeSearch {
 
 		@Override
 		protected int polarity() { return -1; }
-
-    	@Override
-		public String toString() {
-    		String s = action.toString() + "[ ";
-    		for (Node n : children)
-    			s += n.toString() + " ";
-    		return s + "]";
-    	}
     }
 
     class MaxNode extends Node {
@@ -100,12 +92,7 @@ public class MonteCarloTreeSearch {
 				children.add(new MinNode(state, this, m));
 			}
 		}
-
-    	@Override
-		public String toString() {
-    		return "";
-    	}
-   }
+    }
 
 	Node root;
 	final StateMachine stateMachine;
@@ -123,7 +110,7 @@ public class MonteCarloTreeSearch {
 	public void search() throws MoveDefinitionException, TransitionDefinitionException, GoalDefinitionException {
 		Node node = root.select();
 		node.expand();
-		double score = monteCarlo(node.state, 5); // TODO make 5 a constant
+		double score = monteCarlo(node.state, N_DEPTH_CHARGES);
 		node.backpropagate(score);
 	}
 

@@ -9,6 +9,8 @@ import org.ggp.base.util.statemachine.exceptions.MoveDefinitionException;
 import org.ggp.base.util.statemachine.exceptions.TransitionDefinitionException;
 
 public class MCTSPlayer extends SampleGamer {
+
+	public static final int BUFFER_SECONDS = 3;
 	MonteCarloTreeSearch tree;
 
 	@Override
@@ -23,12 +25,12 @@ public class MCTSPlayer extends SampleGamer {
 			throws TransitionDefinitionException, MoveDefinitionException, GoalDefinitionException {
 		Instant start = Instant.now();
 		Instant max = Instant.ofEpochMilli(timeout);
-		max = max.minus(Duration.ofSeconds(3));
+		max = max.minus(Duration.ofSeconds(BUFFER_SECONDS));
+
 		tree.updateRoot(getCurrentState());
         while(max.compareTo(Instant.now()) > 0) {
 			tree.search();
 		}
-
 		Move selection = tree.chooseMove();
 
 		Instant stop = Instant.now();
