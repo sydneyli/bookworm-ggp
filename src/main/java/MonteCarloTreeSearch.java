@@ -1,3 +1,5 @@
+import java.time.Duration;
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
@@ -117,21 +119,58 @@ public class MonteCarloTreeSearch {
 	volatile Node root;
 	final StateMachine stateMachine;
 	final Role role;
+	Stats stats = new Stats();
+
+	private class Stats {
+		int numDepthCharges = 0;
+		Duration select = Duration.ZERO;
+		Duration expand = Duration.ZERO;
+		Duration sim = Duration.ZERO;
+		Duration prop = Duration.ZERO;
+		Stats() {}
+
+		public void reset() {
+		 numDepthCharges = 0; select = Duration.ZERO; expand = Duration.ZERO;
+		 sim = Duration.ZERO; prop = Duration.ZERO; }
+	}
 
 	public MonteCarloTreeSearch(StateMachine machine, Role role) {
 		this.stateMachine = machine;
 		this.role = role;
 	}
 
-	public void updateRoot(MachineState state) throws MoveDefinitionException, TransitionDefinitionException {
+	public void setRoot(MachineState state) {
 		root = new MaxNode(state);
 	}
 
+	public void updateRoot(MachineState state) throws MoveDefinitionException, TransitionDefinitionException {
+		stats.reset();
+		if (state.equals(root.state)) return;
+		for (Node child : root.children) {
+			for (Node grandchild : child.children) {
+				if (state.equals(grandchild.state)) {
+					root = grandchild;
+					return;
+				}
+			}
+		}
+		setRoot(state);
+	}
+
 	public void search() throws MoveDefinitionException, TransitionDefinitionException, GoalDefinitionException {
+		Instant t1 = Instant.now();
 		Node node = root.select();
+		Instant t2 = Instant.now();
 		node.expand();
+		Instant t3 = Instant.now();
 		double score = monteCarlo(node.state);
+		Instant t4 = Instant.now();
 		node.backpropagate(score);
+		Instant t5 = Instant.now();
+		stats.select = stats.select.plus(Duration.between(t1, t2));
+		stats.expand = stats.expand.plus(Duration.between(t2, t3));
+		stats.sim = stats.sim.plus(Duration.between(t3, t4));
+		stats.prop = stats.prop.plus(Duration.between(t4, t5));
 	}
 
 	public Move chooseMove() {
@@ -157,9 +196,20 @@ public class MonteCarloTreeSearch {
 
     private double depthCharge(MachineState state)
 			throws GoalDefinitionException, TransitionDefinitionException, MoveDefinitionException {
+    	stats.numDepthCharges ++;
 		if (stateMachine.findTerminalp(state))
 			return stateMachine.findReward(role, state);
 		MachineState randomState = stateMachine.getNextState(state, stateMachine.getRandomJointMove(state));
 		return depthCharge(randomState);
 	}
+
+    public void printStats() {
+    	System.out.println("=========MCTS STATS=========");
+    	System.out.println("Depth charges: " + stats.numDepthCharges);
+    	System.out.println("select time: " + stats.select.toMillis());
+    	System.out.println("expand time: " + stats.expand.toMillis());
+    	System.out.println("sim time: " + stats.sim.toMillis());
+    	System.out.println("prop time: " + stats.prop.toMillis());
+    	System.out.println("============================");
+    }
 }

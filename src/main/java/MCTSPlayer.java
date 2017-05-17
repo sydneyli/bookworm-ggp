@@ -10,14 +10,22 @@ import org.ggp.base.util.statemachine.exceptions.TransitionDefinitionException;
 
 public class MCTSPlayer extends SampleGamer {
 
-	public static final int BUFFER_SECONDS = 3;
+	public static final int BUFFER_SECONDS = 4;
 	MonteCarloTreeSearch tree;
 
 	@Override
 	public void stateMachineMetaGame(long timeout) throws TransitionDefinitionException, MoveDefinitionException, GoalDefinitionException
 	{
+		Instant max = Instant.ofEpochMilli(timeout);
+		max = max.minus(Duration.ofSeconds(BUFFER_SECONDS));
+
 		super.stateMachineMetaGame(timeout);
 		tree = new MonteCarloTreeSearch(getStateMachine(), getRole());
+		tree.setRoot(getCurrentState());
+        while(max.compareTo(Instant.now()) > 0) {
+			tree.search();
+		}
+        tree.printStats();
 	}
 
 	@Override
@@ -32,6 +40,7 @@ public class MCTSPlayer extends SampleGamer {
 			tree.search();
 		}
 		Move selection = tree.chooseMove();
+        tree.printStats();
 
 		Instant stop = Instant.now();
 		notifyObservers(new GamerSelectedMoveEvent(getStateMachine().getLegalMoves(getCurrentState(), getRole()),
