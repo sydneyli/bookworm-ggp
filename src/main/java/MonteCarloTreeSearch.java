@@ -1,8 +1,10 @@
 import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
+import java.util.LinkedList;
 import java.util.List;
 import java.util.Optional;
+import java.util.Queue;
 
 import org.ggp.base.util.statemachine.MachineState;
 import org.ggp.base.util.statemachine.Move;
@@ -24,6 +26,15 @@ public class MonteCarloTreeSearch {
     	protected Node(MachineState state, Optional<Node> parent) {
     		this.state = state;
     		this.parent = parent;
+    		setInGrandparentsUnvisitedList();
+    	}
+
+    	private void setInGrandparentsUnvisitedList() {
+    		parent.ifPresent(
+                node -> node.unvisitedGrandchildren.add(this));
+    		parent.ifPresent(parent ->
+                parent.parent.ifPresent(
+                    node -> node.unvisitedGrandchildren.add(this)));
     	}
 
     	protected Node(MachineState state) {
@@ -33,12 +44,16 @@ public class MonteCarloTreeSearch {
     	// 1 or -1 to multiply with the utility!
     	protected int polarity() { return 1; }
 
+    	private boolean changed = true;
+    	private double selectCache = 0;
+
     	// Should never be called on root
         private double selectFn() {
-            assert(parent.isPresent());
-            assert(visits > 0);
-            return polarity() * (utility/(double)visits) +
+        	if (!changed) return selectCache;
+            selectCache = polarity() * (utility/(double)visits) +
                    Math.sqrt(2 * Math.log(parent.get().visits)/visits);
+            changed = false;
+            return selectCache;
         }
 
         class Result {
@@ -47,15 +62,15 @@ public class MonteCarloTreeSearch {
         	public Result(Node n) { this(n, false); }
         }
 
+        private Queue<Node> unvisitedGrandchildren = new LinkedList();
+
         private synchronized Result selectSync() {
      		if (visits == 0) return new Result(this);
      		// explore node if not all grandchildren are expanded
-    		for (Node child : children) {
-    			if (child.visits == 0) return new Result(child);
-    			for (Node grandchild : child.children) {
-    				if (grandchild.visits == 0) return new Result(grandchild);
-    			}
-    		}
+     		if (!unvisitedGrandchildren.isEmpty()) {
+     			return new Result(unvisitedGrandchildren.remove());
+     		}
+     		Instant t1 = Instant.now();
     		double score = 0;
     		Node result = this;
     		for (Node child : children) {
@@ -65,6 +80,9 @@ public class MonteCarloTreeSearch {
                     result = child;
                 }
     		}
+     		Instant t2 = Instant.now();
+     		stats.subselect = stats.subselect.plus(Duration.between(t1, t2));
+
     		if (result == this) return new Result(this);
     		return new Result(result, true);
         }
@@ -80,6 +98,7 @@ public class MonteCarloTreeSearch {
     	public synchronized void backpropagate(double score) {
     		visits++;
     		utility += score;
+    		changed = true;
     		parent.ifPresent(n -> n.backpropagate(score));
     	}
     }
@@ -124,6 +143,7 @@ public class MonteCarloTreeSearch {
 	private class Stats {
 		int numDepthCharges = 0;
 		Duration select = Duration.ZERO;
+		Duration subselect = Duration.ZERO;
 		Duration expand = Duration.ZERO;
 		Duration sim = Duration.ZERO;
 		Duration prop = Duration.ZERO;
@@ -131,6 +151,7 @@ public class MonteCarloTreeSearch {
 
 		public void reset() {
 		 numDepthCharges = 0; select = Duration.ZERO; expand = Duration.ZERO;
+		 subselect = Duration.ZERO;
 		 sim = Duration.ZERO; prop = Duration.ZERO; }
 	}
 
@@ -207,6 +228,7 @@ public class MonteCarloTreeSearch {
     	System.out.println("=========MCTS STATS=========");
     	System.out.println("Depth charges: " + stats.numDepthCharges);
     	System.out.println("select time: " + stats.select.toMillis());
+    	System.out.println("\tsub time: " + stats.subselect.toMillis());
     	System.out.println("expand time: " + stats.expand.toMillis());
     	System.out.println("sim time: " + stats.sim.toMillis());
     	System.out.println("prop time: " + stats.prop.toMillis());
