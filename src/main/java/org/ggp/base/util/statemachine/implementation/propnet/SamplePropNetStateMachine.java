@@ -90,8 +90,7 @@ public class SamplePropNetStateMachine extends StateMachine {
     @Override
     public MachineState getInitialState() {
     	propNet.getInitProposition().setValue(true);
-    	getStateFromBase(); //not sure if this is right?
-    	return null;
+    	return getStateFromBase(); //not sure if this is right?
     }
 
     /**
@@ -100,8 +99,8 @@ public class SamplePropNetStateMachine extends StateMachine {
     @Override
     public List<Move> findActions(Role role)
             throws MoveDefinitionException {
-        // TODO: Compute legal moves.
-        return null;
+    	// TODO (sydli): not sure this is correct??
+    	return getLegalMoves(getInitialState(), role);
     }
 
     /**
