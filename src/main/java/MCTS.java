@@ -44,12 +44,14 @@ public class MCTS extends SampleGamer {
 
         @Override
 		public void run() {
-        	try {
-				expandTree();
-			} catch (MoveDefinitionException | TransitionDefinitionException | GoalDefinitionException e) {
-				// TODO Auto-generated catch block
-				e.printStackTrace();
-			}
+        	while (!shouldStop) {
+	        	try {
+					expandTree();
+				} catch (Exception e) {
+					// TODO Auto-generated catch block
+					// e.printStackTrace(); // lol
+				}
+        	}
         }
     }
 
@@ -75,13 +77,14 @@ public class MCTS extends SampleGamer {
     }
 
     double selectfn(MCNode node) {
-    	return new Random().nextDouble();
+    	//System.out.println("1 " + node.utility/node.visits + " 2 " + Math.log(node.parent.visits)/node.visits);
+    	return (new Random().nextFloat() * (20 + node.utility/node.visits)+ new Random().nextFloat() * 20 * Math.sqrt(2*Math.log(node.parent.visits)/(node.visits)));
     }
 
     public MCNode select (MCNode node, int depth, int[] numContinues, int num) {
-    	if (depth == 1 && !node.semaphore.tryAcquire()) {
+    	/*if (depth == 1 && !node.semaphore.tryAcquire()) {
     		return null;
-    	}
+    	}*/
     	boolean settle = numContinues[0] > num;
     	if ((node.visits == 0 && node.parent == null) || (settle && depth > 1 && node.move == null)) {
     		return node;
@@ -176,36 +179,33 @@ public class MCTS extends SampleGamer {
     }
 
     public boolean backpropagateH(MCNode node, double score, MCNode base, int depth) {
-    	if (node.parent == null) {
-    		return true; // No need to update parent; this would cause concurrent update
-    	}
-    	if (score < 0) {
-    		System.err.println("wtf");
-    	}
-    	node.visits = node.visits+1;
-	    if (node.move != null) {
-		    node.utility = node.utility+score;
-	    } else {
-	    	double min = 101;
-    		for (MCNode child: node.children) {
-    			min = Math.min(minMax(child, 1), min);
-    		}
-	    	if (min == 101) {
-	    		min = node.utility;
-	    		if (new Random().nextFloat() < 0.01) {
-	    			System.out.println("bad backprop");
-	    		}
-	    	}
-	    	node.utility = min;
+	    if (score < 0) {
+	            System.err.println("wtf");
 	    }
-	    if (node.parent != null) {
-	    	backpropagateH(node.parent,score, node, depth + 1);
-	    }
-	    return true;
+	    node.visits = node.visits+1;
+        if (node.move != null) {
+                node.utility = node.utility+score;
+        } else {
+            double min = 101;
+            for (MCNode child: node.children) {
+                    min = Math.min(minMax(child, 1), min);
+            }
+            if (min == 101) {
+                    min = node.utility;
+                    if (new Random().nextFloat() < 0.01) {
+                            System.out.println("bad backprop");
+                    }
+            }
+            node.utility = min;
+        }
+        if (node.parent != null) {
+            backpropagateH(node.parent,score, node, depth + 1);
+        }
+        return true;
     }
 
     public boolean backpropagate (MCNode node, double score) {
-    	return backpropagateH(node, score, node, 0);
+    	return backpropagateH(node.parent, score, node, 1);
 	}
 
     private void expandTree() throws MoveDefinitionException, TransitionDefinitionException, GoalDefinitionException {
@@ -236,10 +236,11 @@ public class MCTS extends SampleGamer {
 				System.out.println("Performed " + num + " depth charges " + numBad + " errors, got score " + score);
 			}
 		}
-		System.out.println("Stopped");
+		//System.out.println("Stopped");
     }
 
 	private void releaseLocks(MCNode s) {
+		/*
 		// TODO Auto-generated method stub
 		if (s == null) {
 			return;
@@ -251,7 +252,7 @@ public class MCTS extends SampleGamer {
 				s.semaphore.release();
 			}
 		}
-		releaseLocks(s.parent);
+		releaseLocks(s.parent);*/
 	}
 
 
@@ -308,12 +309,14 @@ public class MCTS extends SampleGamer {
 			}
 		}
 
-		expandTree();
-		try {
-			Thread.sleep(10);
-		} catch (InterruptedException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
+		while (!shouldStop) {
+			try {
+				expandTree();
+				Thread.sleep(10);
+			} catch (Exception e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			}
 		}
 
 		int[] numProcessed = new int[1];
