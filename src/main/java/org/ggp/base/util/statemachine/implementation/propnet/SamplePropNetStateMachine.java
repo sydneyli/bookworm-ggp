@@ -5,7 +5,6 @@ import java.util.HashSet;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
-import java.util.Queue;
 import java.util.Set;
 import java.util.stream.Collectors;
 
@@ -15,12 +14,7 @@ import org.ggp.base.util.gdl.grammar.GdlRelation;
 import org.ggp.base.util.gdl.grammar.GdlSentence;
 import org.ggp.base.util.propnet.architecture.Component;
 import org.ggp.base.util.propnet.architecture.PropNet;
-import org.ggp.base.util.propnet.architecture.components.And;
-import org.ggp.base.util.propnet.architecture.components.Constant;
-import org.ggp.base.util.propnet.architecture.components.Not;
-import org.ggp.base.util.propnet.architecture.components.Or;
 import org.ggp.base.util.propnet.architecture.components.Proposition;
-import org.ggp.base.util.propnet.architecture.components.Transition;
 import org.ggp.base.util.propnet.factory.OptimizingPropNetFactory;
 import org.ggp.base.util.statemachine.MachineState;
 import org.ggp.base.util.statemachine.Move;
@@ -51,8 +45,7 @@ public class SamplePropNetStateMachine extends StateMachine {
         try {
             propNet = OptimizingPropNetFactory.create(description);
             roles = propNet.getRoles();
-            // TODO (sydli): toposort broken :'(
-            // ordering = getOrdering();
+            ordering = getOrdering();
         } catch (InterruptedException e) {
             throw new RuntimeException(e);
         }
@@ -65,7 +58,8 @@ public class SamplePropNetStateMachine extends StateMachine {
     @Override
     public boolean isTerminal(MachineState state) {
     	markBases(state.getContents());
-        return propMark(propNet.getTerminalProposition());
+    	propAllMarks();
+        return propNet.getTerminalProposition().getValue();
     }
 
     /**
@@ -79,8 +73,9 @@ public class SamplePropNetStateMachine extends StateMachine {
     public int getGoal(MachineState state, Role role)
             throws GoalDefinitionException {
     	markBases(state.getContents());
+    	propAllMarks();
     	for (Proposition g : propNet.getGoalPropositions().get(role)) {
-    		if (propMark(g)) return getGoalValue(g);
+    		if (g.getValue()) return getGoalValue(g);
     	}
     	return 0;
     }
@@ -114,8 +109,9 @@ public class SamplePropNetStateMachine extends StateMachine {
     public List<Move> getLegalMoves(MachineState state, Role role)
             throws MoveDefinitionException {
     	markBases(state.getContents());
+    	propAllMarks();
      	return propNet.getLegalPropositions().get(role).stream() 			  // Gets all legal props for this role!
-                      .filter(this::propMark)  								  // Only use the props that are marked true
+                      .filter(Proposition::getValue)  								  // Only use the props that are marked true
                       .map(SamplePropNetStateMachine::getMoveFromProposition) // Prop -> Move
                       .collect(Collectors.toList());
     }
@@ -128,10 +124,15 @@ public class SamplePropNetStateMachine extends StateMachine {
             throws TransitionDefinitionException {
     	markActions(toDoes(moves));
     	markBases(state.getContents());
+    	propAllMarks();
     	return new MachineState(propNet.getBasePropositions().values().stream()		// Get all base propositions
-               .filter(prop -> propMark(prop.getSingleInput()))
+               .filter(prop -> prop.getSingleInput().getValue())
                .map(prop -> prop.getName())
                .collect(Collectors.toSet()));					// propagates the mark
+    }
+
+    private boolean isProposition(Component comp) {
+    	return comp instanceof Proposition;
     }
 
     /**
@@ -148,50 +149,28 @@ public class SamplePropNetStateMachine extends StateMachine {
      *
      * @return The order in which the truth values of propositions need to be set.
      */
-    public List<Proposition> getOrdering()
-    {
-        // List to contain the topological ordering.
-        List<Proposition> order = new LinkedList<Proposition>();
+	public List<Proposition> getOrdering()
+	{
+		List<Proposition> order = new LinkedList<Proposition>();
+		List<Component> toVisit = new ArrayList<>(propNet.getComponents());
+		List<Proposition> propositions = new ArrayList<Proposition>(propNet.getPropositions());
+		toVisit.removeAll(propNet.getBasePropositions().values());
+		toVisit.removeAll(propNet.getInputPropositions().values());
+		toVisit.remove(propNet.getInitProposition());
 
-        // All of the propositions in the PropNet.
-        List<Proposition> propositions = new ArrayList<Proposition>(propNet.getPropositions());
-
-        // All of the edges in the PropNet
-        Set<Component> edges = new HashSet<>(propNet.getComponents());
-        edges.removeAll(propositions);
-
-        // Kahn's algorithm
-        // 1. Init search to list of all nodes with no input
-        Queue<Proposition> search = new LinkedList<>(propositions.stream()
-        		.filter(prop -> prop.getInputs().isEmpty()).collect(Collectors.toList()));
-
-        while (!search.isEmpty()) {
-        	// 2. Add popped node to ordering
-        	Proposition node = search.remove();
-        	order.add(node);
-            // 3. Remove this node's output edges from graph
-        	for (Component edge : node.getOutputs()) {
-        		assert(!(edge instanceof Proposition)); // neighbor gotta be logical gate or transition
-        		edges.remove(edge);
-
-        		// TODO(sydli): I think this part is wrong-- double-check?
-        		for (Component neighbor : edge.getOutputs()) {
-        			assert(neighbor instanceof Proposition);
-        			neighbor.removeInput(edge);
-        			if (neighbor.getInputs().isEmpty()) {
-        				search.add((Proposition) neighbor);
-        			}
-        		}
-        	}
-        }
-        if (!edges.isEmpty()) {
-        	throw new RuntimeException("Oh no!!! there are still edges left... detected cycle in propnet during toposort");
-        }
-        // 4. Exempt base/input props
-        order.stream().filter(prop -> !isBaseOrInput(prop))
-                      .collect(Collectors.toList());
-        return order;
-    }
+		while (!toVisit.isEmpty()) {
+			Set<Component> traversed =
+                toVisit.stream()
+                       .filter(c -> c.getInputs().stream().allMatch(input -> !toVisit.contains(input)))
+                       .map(c -> {
+                         if (c instanceof Proposition)
+                        	 order.add((Proposition) c);
+                         return c;
+                       }).collect(Collectors.toSet());
+			toVisit.removeAll(traversed);
+		}
+		return order;
+	}
 
     private boolean isBaseOrInput(Component p) {
     	return propNet.getBasePropositions().values().contains(p) ||
@@ -264,32 +243,16 @@ public class SamplePropNetStateMachine extends StateMachine {
     	markProps(new HashSet<>(actionMarks), propNet.getInputPropositions());
     }
 
+    private void propAllMarks() {
+    	for (Proposition prop: ordering) {
+    		prop.setValue(prop.getSingleInput().getValue());
+    	}
+    }
+
     private void clearMarks() {
     	for (Proposition prop : propNet.getPropositions()) {
     		prop.setValue(false);
     	}
-    }
-
-    private boolean propMark(Component prop) {
-    	//return prop.mark(this::isBaseOrInput);
-		if (isBaseOrInput(prop)) return prop.getValue();
-		if (prop instanceof And) return and(prop);
-		if (prop instanceof Transition) return or(prop);
-		if (prop instanceof Or) return or(prop);
-		if (prop instanceof Not) return !propMark(prop.getSingleInput());
-		if (prop instanceof Constant) return prop.getValue();
-		if (prop.getInputs().size() == 0) return prop.getValue();
-		return propMark(prop.getSingleInput()); // VIEW
-	}
-
-    private boolean and(Component prop) {
-    	for (Component input : prop.getInputs()) if (!propMark(input)) return false;
-    	return true;
-    }
-
-    private boolean or(Component prop) {
-    	for (Component input : prop.getInputs()) if (propMark(input)) return true;
-    	return false;
     }
 
     /**
