@@ -15,7 +15,7 @@ public class MCTS extends SampleGamer {
 	private volatile boolean shouldStop = false;
 	private volatile boolean debug = false;
 	private volatile MCNode root = null;
-	private static final int numThreads = 5;
+	private static final int numThreads = 1;
 
     class Timeout extends Thread {
     	private static final int buffer = 3000;
