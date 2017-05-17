@@ -34,9 +34,4 @@ public final class And extends Component
 	{
 		return toDot("invhouse", "grey", "AND");
 	}
-
-	@Override
-	public boolean mark() {
-		return getInputs().stream().map(comp -> comp.getValue()).allMatch(b -> b);
-	}
 }

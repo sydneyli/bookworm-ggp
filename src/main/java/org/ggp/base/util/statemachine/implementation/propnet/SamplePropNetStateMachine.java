@@ -1,7 +1,6 @@
 package org.ggp.base.util.statemachine.implementation.propnet;
 
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.HashSet;
 import java.util.LinkedList;
 import java.util.List;
@@ -16,7 +15,12 @@ import org.ggp.base.util.gdl.grammar.GdlRelation;
 import org.ggp.base.util.gdl.grammar.GdlSentence;
 import org.ggp.base.util.propnet.architecture.Component;
 import org.ggp.base.util.propnet.architecture.PropNet;
+import org.ggp.base.util.propnet.architecture.components.And;
+import org.ggp.base.util.propnet.architecture.components.Constant;
+import org.ggp.base.util.propnet.architecture.components.Not;
+import org.ggp.base.util.propnet.architecture.components.Or;
 import org.ggp.base.util.propnet.architecture.components.Proposition;
+import org.ggp.base.util.propnet.architecture.components.Transition;
 import org.ggp.base.util.propnet.factory.OptimizingPropNetFactory;
 import org.ggp.base.util.statemachine.MachineState;
 import org.ggp.base.util.statemachine.Move;
@@ -75,8 +79,7 @@ public class SamplePropNetStateMachine extends StateMachine {
     public int getGoal(MachineState state, Role role)
             throws GoalDefinitionException {
     	markBases(state.getContents());
-    	Set<Proposition> goals = propNet.getGoalPropositions().get(role);
-    	for (Proposition g : goals) {
+    	for (Proposition g : propNet.getGoalPropositions().get(role)) {
     		if (propMark(g)) return getGoalValue(g);
     	}
     	return 0;
@@ -90,7 +93,7 @@ public class SamplePropNetStateMachine extends StateMachine {
     @Override
     public MachineState getInitialState() {
     	propNet.getInitProposition().setValue(true);
-    	return getStateFromBase(); //not sure if this is right?
+    	return getStateFromBase();
     }
 
     /**
@@ -99,8 +102,9 @@ public class SamplePropNetStateMachine extends StateMachine {
     @Override
     public List<Move> findActions(Role role)
             throws MoveDefinitionException {
-    	// TODO (sydli): not sure this is correct??
-    	return getLegalMoves(getInitialState(), role);
+    	return propNet.getLegalPropositions().get(role).stream()
+    			.map(SamplePropNetStateMachine::getMoveFromProposition)
+    			.collect(Collectors.toList());
     }
 
     /**
@@ -124,12 +128,10 @@ public class SamplePropNetStateMachine extends StateMachine {
             throws TransitionDefinitionException {
     	markActions(toDoes(moves));
     	markBases(state.getContents());
-    	propNet.getBasePropositions().values().stream()		// Get all base propositions
-               .map(Component::getSingleInput)				// prop.source
-               .map(Component::getSingleInput)				// prop.souce.source
-               .forEach(this::propMark);					// propagates the mark
-        // TODO (sydli) Do we need to revert the mutated state back to original?
-        return getStateFromBase();
+    	return new MachineState(propNet.getBasePropositions().values().stream()		// Get all base propositions
+               .filter(prop -> propMark(prop.getSingleInput()))
+               .map(prop -> prop.getName())
+               .collect(Collectors.toSet()));					// propagates the mark
     }
 
     /**
@@ -263,12 +265,31 @@ public class SamplePropNetStateMachine extends StateMachine {
     }
 
     private void clearMarks() {
-    	markProps(Collections.emptySet(), propNet.getBasePropositions());
+    	for (Proposition prop : propNet.getPropositions()) {
+    		prop.setValue(false);
+    	}
     }
 
     private boolean propMark(Component prop) {
-    	if (isBaseOrInput(prop)) return prop.getValue();
-    	return prop.mark();
+    	//return prop.mark(this::isBaseOrInput);
+		if (isBaseOrInput(prop)) return prop.getValue();
+		if (prop instanceof And) return and(prop);
+		if (prop instanceof Transition) return or(prop);
+		if (prop instanceof Or) return or(prop);
+		if (prop instanceof Not) return !propMark(prop.getSingleInput());
+		if (prop instanceof Constant) return prop.getValue();
+		if (prop.getInputs().size() == 0) return prop.getValue();
+		return propMark(prop.getSingleInput()); // VIEW
+	}
+
+    private boolean and(Component prop) {
+    	for (Component input : prop.getInputs()) if (!propMark(input)) return false;
+    	return true;
+    }
+
+    private boolean or(Component prop) {
+    	for (Component input : prop.getInputs()) if (propMark(input)) return true;
+    	return false;
     }
 
     /**
