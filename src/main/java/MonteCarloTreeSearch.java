@@ -13,11 +13,11 @@ import org.ggp.base.util.statemachine.exceptions.TransitionDefinitionException;
 public class MonteCarloTreeSearch {
 	public static final int N_DEPTH_CHARGES = 10;
     abstract class Node {
-    	protected int visits = 0;
-    	protected double utility = 0;
+    	protected volatile int visits = 0;
+    	protected volatile double utility = 0;
     	protected final MachineState state;
     	final Optional<Node> parent;
-    	List<Node> children = new ArrayList<>();
+    	volatile List<Node> children = new ArrayList<>();
 
     	protected Node(MachineState state, Optional<Node> parent) {
     		this.state = state;
@@ -32,32 +32,50 @@ public class MonteCarloTreeSearch {
     	protected int polarity() { return 1; }
 
     	// Should never be called on root
-        public double selectFn() {
+        private double selectFn() {
             assert(parent.isPresent());
             assert(visits > 0);
             return polarity() * (utility/(double)visits) +
                    Math.sqrt(2 * Math.log(parent.get().visits)/visits);
         }
 
-    	public Node select() {
-     		if (visits == 0) return this;
-    		for (Node child : children) if (child.visits == 0) return child;
+        class Result {
+        	final Node n; final boolean recurse;
+        	public Result(Node n, boolean r) { this.n = n; this.recurse = r;}
+        	public Result(Node n) { this(n, false); }
+        }
+
+        private synchronized Result selectSync() {
+     		if (visits == 0) return new Result(this);
+     		// explore node if not all grandchildren are expanded
+    		for (Node child : children) {
+    			if (child.visits == 0) return new Result(child);
+    			for (Node grandchild : child.children) {
+    				if (grandchild.visits == 0) return new Result(grandchild);
+    			}
+    		}
     		double score = 0;
     		Node result = this;
     		for (Node child : children) {
-    			double newScore = child.selectFn();
-    			if (newScore > score) {
-    				score = newScore;
-    				result = child;
-    			}
+                double newScore = child.selectFn();
+                if (newScore > score) {
+                    score = newScore;
+                    result = child;
+                }
     		}
-    		if (result == this) return this;
-    		return result.select();
+    		if (result == this) return new Result(this);
+    		return new Result(result, true);
+        }
+
+    	public Node select() {
+    		Result result = selectSync();
+    		if (result.recurse) return result.n.select();
+    		return result.n;
     	}
 
     	public abstract void expand() throws MoveDefinitionException, TransitionDefinitionException;
 
-    	public void backpropagate(double score) {
+    	public synchronized void backpropagate(double score) {
     		visits++;
     		utility += score;
     		parent.ifPresent(n -> n.backpropagate(score));
@@ -72,7 +90,7 @@ public class MonteCarloTreeSearch {
         }
 
 		@Override
-		public void expand() throws MoveDefinitionException, TransitionDefinitionException {
+		public synchronized void expand() throws MoveDefinitionException, TransitionDefinitionException {
     		for (List<Move> moves : stateMachine.getLegalJointMoves(state, role, action)) {
     			children.add(new MaxNode(stateMachine.findNext(moves, state), this));
     		}
@@ -87,14 +105,16 @@ public class MonteCarloTreeSearch {
  		public MaxNode(MachineState state, MinNode parent) { super(state, Optional.of(parent)); }
 
 		@Override
-		public void expand() throws MoveDefinitionException, TransitionDefinitionException {
+		public synchronized void expand() throws MoveDefinitionException, TransitionDefinitionException {
 			for (Move m : stateMachine.getLegalMoves(state, role)) {
-				children.add(new MinNode(state, this, m));
+				Node node = new MinNode(state, this, m);
+				children.add(node);
+				node.expand();
 			}
 		}
     }
 
-	Node root;
+	volatile Node root;
 	final StateMachine stateMachine;
 	final Role role;
 
@@ -110,7 +130,7 @@ public class MonteCarloTreeSearch {
 	public void search() throws MoveDefinitionException, TransitionDefinitionException, GoalDefinitionException {
 		Node node = root.select();
 		node.expand();
-		double score = monteCarlo(node.state, N_DEPTH_CHARGES);
+		double score = monteCarlo(node.state);
 		node.backpropagate(score);
 	}
 
@@ -127,12 +147,12 @@ public class MonteCarloTreeSearch {
 		return bestMove.get();
 	}
 
-	private double monteCarlo(MachineState state, int count) throws GoalDefinitionException, TransitionDefinitionException, MoveDefinitionException {
+	private double monteCarlo(MachineState state) throws GoalDefinitionException, TransitionDefinitionException, MoveDefinitionException {
 		double total = 0;
-		for (int i = 0; i < count; i++) {
+		for (int i = 0; i < N_DEPTH_CHARGES; i++) {
 			total += depthCharge(state);
 		}
-		return total/count;
+		return total/N_DEPTH_CHARGES;
 	}
 
     private double depthCharge(MachineState state)

@@ -11,7 +11,6 @@ import org.ggp.base.util.statemachine.exceptions.GoalDefinitionException;
 import org.ggp.base.util.statemachine.exceptions.MoveDefinitionException;
 import org.ggp.base.util.statemachine.exceptions.TransitionDefinitionException;
 import org.ggp.base.util.statemachine.implementation.propnet.SamplePropNetStateMachine;
-import org.ggp.base.util.statemachine.implementation.prover.ProverStateMachine;
 
 /**
  * SampleGamer is a simplified version of the StateMachineGamer, dropping some
@@ -25,14 +24,12 @@ import org.ggp.base.util.statemachine.implementation.prover.ProverStateMachine;
 
 public abstract class SampleGamer extends StateMachineGamer
 {
-	private StateMachine propNetStateMachine;
-	private StateMachine oldStateMachine;
+	private StateMachine stateMachine;
 
 	@Override
 	public void stateMachineMetaGame(long timeout) throws TransitionDefinitionException, MoveDefinitionException, GoalDefinitionException
 	{
-		oldStateMachine.initialize(getMatch().getGame().getRules());
-		propNetStateMachine.initialize(getMatch().getGame().getRules());
+		stateMachine.initialize(getMatch().getGame().getRules());
 	}
 
 	/** This will currently return "SampleGamer"
@@ -47,13 +44,8 @@ public abstract class SampleGamer extends StateMachineGamer
 	// This is the default State Machine
 	@Override
 	public StateMachine getInitialStateMachine() {
-		oldStateMachine =  new CachedStateMachine(new ProverStateMachine());
-		propNetStateMachine =  new CachedStateMachine(new SamplePropNetStateMachine());
-		return propNetStateMachine;
-	}
-
-	public StateMachine getOldStateMachine() {
-		return oldStateMachine;
+		stateMachine =  new CachedStateMachine(new SamplePropNetStateMachine());
+		return stateMachine;
 	}
 
 	// This is the defaul Sample Panel

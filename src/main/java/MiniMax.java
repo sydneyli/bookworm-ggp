@@ -61,7 +61,6 @@ public class MiniMax extends HeuristicGamer {
 
 		List<Move> moves = getStateMachine().getLegalMoves(getCurrentState(), getRole());
 		System.out.println(moves);
-		System.out.println(getOldStateMachine().getLegalMoves(getCurrentState(), getRole()));
 		Move selection = maxR(getCurrentState(), 0).move.get();
 		long stop = System.currentTimeMillis();
 
