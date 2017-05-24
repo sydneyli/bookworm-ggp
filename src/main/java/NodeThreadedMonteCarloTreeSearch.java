@@ -1,17 +1,23 @@
+import java.time.Duration;
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Random;
 import java.util.concurrent.Semaphore;
 
-import org.ggp.base.player.gamer.event.GamerSelectedMoveEvent;
-import org.ggp.base.player.gamer.statemachine.sample.SampleGamer;
 import org.ggp.base.util.statemachine.MachineState;
 import org.ggp.base.util.statemachine.Move;
+import org.ggp.base.util.statemachine.Role;
+import org.ggp.base.util.statemachine.StateMachine;
 import org.ggp.base.util.statemachine.exceptions.GoalDefinitionException;
 import org.ggp.base.util.statemachine.exceptions.MoveDefinitionException;
 import org.ggp.base.util.statemachine.exceptions.TransitionDefinitionException;
 
-public class MCTS extends SampleGamer {
+public class NodeThreadedMonteCarloTreeSearch extends MonteCarloTreeSearch {
+	public NodeThreadedMonteCarloTreeSearch(StateMachine machine, Role role) {
+		super(machine, role);
+	}
+
 	private volatile boolean shouldStop = false;
 	private volatile boolean debug = false;
 	private volatile MCNode root = null;
@@ -103,7 +109,7 @@ public class MCTS extends SampleGamer {
     	if (node.visits==0 && node.move == null) {
     		return node;
     	}
-    	if (getStateMachine().isTerminal(node.state)) {
+    	if (super.stateMachine.isTerminal(node.state)) {
     		numContinues[0]++;
     		return null;
     	}
@@ -138,10 +144,10 @@ public class MCTS extends SampleGamer {
      }
 
     public boolean expand (MCNode node) throws MoveDefinitionException, TransitionDefinitionException {
-    	if (getStateMachine().isTerminal(node.state)) {
+    	if (super.stateMachine.isTerminal(node.state)) {
     		return true;
     	}
-    	List<Move> actions = getStateMachine().getLegalMoves(node.state, getRole());
+    	List<Move> actions = super.stateMachine.getLegalMoves(node.state, super.role);
 	    for (int i=0; i < actions.size(); i++) {
 	    	addNewStates(node, actions.get(i));
 	    };
@@ -150,13 +156,13 @@ public class MCTS extends SampleGamer {
 
     public void addNewStates(MCNode node, Move move) throws MoveDefinitionException, TransitionDefinitionException {
     	if (node.move != null) {
-    		throw new MoveDefinitionException(node.state, getRole());
+    		throw new MoveDefinitionException(node.state, super.role);
     	}
-    	List<List<Move>> moves = getStateMachine().getLegalJointMoves(node.state, getRole(), move);
+    	List<List<Move>> moves = super.stateMachine.getLegalJointMoves(node.state, super.role, move);
     	MCNode newnode = new MCNode(node.state, 0, 0, node, new ArrayList<MCNode>(), move);
     	node.children.add(newnode);
     	for (List<Move> jointMove: moves) {
-    		MachineState state = getStateMachine().getNextState(node.state, jointMove);
+    		MachineState state = super.stateMachine.getNextState(node.state, jointMove);
     		//System.out.println("Made move " + move + " from " + node.state + " to " + state);
     		newnode.children.add(new MCNode(state, 0, 0, newnode, new ArrayList<MCNode>(), null));
     	}
@@ -221,10 +227,10 @@ public class MCTS extends SampleGamer {
 			}
 			expand(s);
 			int[] theDepth = new int[1];
-			MachineState terminal = getStateMachine().performDepthCharge(s.state, theDepth);
+			MachineState terminal = super.stateMachine.performDepthCharge(s.state, theDepth);
 			double score = 0;
 			if (terminal != null) {
-				score = (double) getStateMachine().getGoal(terminal, getRole());
+				score = (double) super.stateMachine.getGoal(terminal, super.role);
 			} else {
 				System.out.println("hmm, terminal state is null");
 			}
@@ -287,13 +293,15 @@ public class MCTS extends SampleGamer {
 	}
 
 	@Override
-	public Move stateMachineSelectMove(long timeout) throws TransitionDefinitionException, MoveDefinitionException, GoalDefinitionException {
+	public void search(Duration searchTime) {
 		long start = System.currentTimeMillis();
 		shouldStop = false;
-		Timeout t = new Timeout(timeout);
+		Timeout t = new Timeout(Instant.now().toEpochMilli() + searchTime.toMillis());
 		t.start();
-		root = new MCNode(getCurrentState(), 0, 0, null, new ArrayList<MCNode>(), null);
-		expand(root);
+		root = new MCNode(this.root.state, 0, 0, null, new ArrayList<MCNode>(), null);
+		try {
+            expand(root);
+		} catch(Exception e) {}
 		root.visits++;
 
 		for (int i = 0; i < numThreads; i++) {
@@ -329,6 +337,11 @@ public class MCTS extends SampleGamer {
 		testDepth(root, 0, numProcessed, numPositive, sumPositive, minDepth, maxDepth, totalDepth);
 		System.out.println(numProcessed[0] + " processed, " + numPositive[0] + " nodes visited, " + sumPositive[0] + " total visits");
 		System.out.println(minDepth[0] + " mindepth, " + maxDepth[0] + " maxDepth, " + ((float) totalDepth[0]) / numProcessed[0] + " totaldepth");
+	}
+
+	@Override
+	public Move chooseMove() {
+
 
 		double bestScore = -1;
 		Move bestMove = null;
@@ -342,17 +355,6 @@ public class MCTS extends SampleGamer {
 		}
 
 		System.out.println("Utility: " + bestScore);
-		List<Move> moves = getStateMachine().getLegalMoves(getCurrentState(), getRole());
-
-		Move selection = bestMove;
-
-		long stop = System.currentTimeMillis();
-		t.stop();
-		if (selection == null) {
-			System.out.println("null move!");
-			selection = moves.get(0);
-		}
-		notifyObservers(new GamerSelectedMoveEvent(moves, selection, stop - start));
-		return selection;
+		return bestMove;
 	}
 }
