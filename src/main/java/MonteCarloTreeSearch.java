@@ -15,7 +15,7 @@ import org.ggp.base.util.statemachine.exceptions.MoveDefinitionException;
 import org.ggp.base.util.statemachine.exceptions.TransitionDefinitionException;
 
 public class MonteCarloTreeSearch {
-	public static final int N_DEPTH_CHARGES = 10;
+	public static final int N_DEPTH_CHARGES = 3;
     abstract class Node {
     	protected volatile int visits = 0;
     	protected volatile double utility = 0;

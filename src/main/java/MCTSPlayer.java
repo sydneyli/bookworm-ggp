@@ -10,7 +10,7 @@ import org.ggp.base.util.statemachine.exceptions.TransitionDefinitionException;
 
 public class MCTSPlayer extends SampleGamer {
 
-	public static final int BUFFER_SECONDS = 4;
+	public static final int BUFFER_SECONDS = 6;
 	MonteCarloTreeSearch tree;
 
 	@Override

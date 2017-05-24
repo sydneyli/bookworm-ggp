@@ -10,7 +10,7 @@ import org.ggp.base.util.statemachine.cache.CachedStateMachine;
 import org.ggp.base.util.statemachine.exceptions.GoalDefinitionException;
 import org.ggp.base.util.statemachine.exceptions.MoveDefinitionException;
 import org.ggp.base.util.statemachine.exceptions.TransitionDefinitionException;
-import org.ggp.base.util.statemachine.implementation.propnet.SamplePropNetStateMachine;
+import org.ggp.base.util.statemachine.implementation.prover.ProverStateMachine;
 
 /**
  * SampleGamer is a simplified version of the StateMachineGamer, dropping some
@@ -44,7 +44,7 @@ public abstract class SampleGamer extends StateMachineGamer
 	// This is the default State Machine
 	@Override
 	public StateMachine getInitialStateMachine() {
-		stateMachine =  new CachedStateMachine(new SamplePropNetStateMachine());
+		stateMachine =  new CachedStateMachine(new ProverStateMachine());
 		return stateMachine;
 	}
 
