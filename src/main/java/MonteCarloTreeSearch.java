@@ -178,13 +178,13 @@ public class MonteCarloTreeSearch {
 		setRoot(state);
 	}
 
-	public void search() throws MoveDefinitionException, TransitionDefinitionException, GoalDefinitionException {
+	public void search(Instant max) throws MoveDefinitionException, TransitionDefinitionException, GoalDefinitionException {
 		Instant t1 = Instant.now();
 		Node node = root.select();
 		Instant t2 = Instant.now();
 		node.expand();
 		Instant t3 = Instant.now();
-		double score = monteCarlo(node.state);
+		double score = monteCarlo(node.state, max);
 		Instant t4 = Instant.now();
 		node.backpropagate(score);
 		Instant t5 = Instant.now();
@@ -207,10 +207,11 @@ public class MonteCarloTreeSearch {
 		return bestMove.get();
 	}
 
-	private double monteCarlo(MachineState state) throws GoalDefinitionException, TransitionDefinitionException, MoveDefinitionException {
+	private double monteCarlo(MachineState state, Instant max) throws GoalDefinitionException, TransitionDefinitionException, MoveDefinitionException {
 		double total = 0;
 		for (int i = 0; i < N_DEPTH_CHARGES; i++) {
 			total += depthCharge(state);
+			if (max.compareTo(Instant.now()) < 0) return total/(i+1);
 		}
 		return total/N_DEPTH_CHARGES;
 	}

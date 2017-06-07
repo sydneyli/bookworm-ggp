@@ -37,7 +37,7 @@ public class MCTSPlayer extends SampleGamer {
 
 		tree.updateRoot(getCurrentState());
         while(max.compareTo(Instant.now()) > 0) {
-			tree.search();
+			tree.search(max);
 		}
 		Move selection = tree.chooseMove();
         tree.printStats();
